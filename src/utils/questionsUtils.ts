@@ -20,15 +20,24 @@ export const getTodayDateString = (): string => {
 // Sort entries by date (most recent first)
 export const sortEntriesByDate = (entries: Entry[]): Entry[] => {
   return [...entries].sort((a, b) => {
-    return new Date(b.date).getTime() - new Date(a.date).getTime();
+    // Sort by date first
+    const dateComparison = new Date(b.date).getTime() - new Date(a.date).getTime();
+    if (dateComparison !== 0) return dateComparison;
+    
+    // If same date, morning comes before evening
+    if (a.type === 'morning' && b.type === 'evening') return -1;
+    if (a.type === 'evening' && b.type === 'morning') return 1;
+    
+    return 0;
   });
 };
 
 // Group entries by month and year
 export const groupEntriesByMonth = (entries: Entry[]): Record<string, Entry[]> => {
+  const sorted = sortEntriesByDate(entries);
   const grouped: Record<string, Entry[]> = {};
   
-  entries.forEach(entry => {
+  sorted.forEach(entry => {
     const date = new Date(entry.date);
     const monthYear = `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
     
@@ -43,12 +52,12 @@ export const groupEntriesByMonth = (entries: Entry[]): Record<string, Entry[]> =
 };
 
 // Get the list of questions for a specific day using the same deterministic algorithm as in context
-export const getQuestionsForDate = (date: string, questions: Question[]): Question[] => {
+export const getMorningQuestionsForDate = (date: string, questions: Question[]): Question[] => {
   // Get mandatory questions
-  const mandatoryQuestions = questions.filter(q => q.isMandatory && q.isActive);
+  const mandatoryQuestions = questions.filter(q => q.isMandatory && q.isActive && q.type === 'morning');
   
   // Get rotating questions
-  const nonMandatoryQuestions = questions.filter(q => !q.isMandatory && q.isActive);
+  const nonMandatoryQuestions = questions.filter(q => !q.isMandatory && q.isActive && q.type === 'morning');
   
   // Select 2 rotating questions (or fewer if not enough available)
   const selectedRotatingCount = Math.min(nonMandatoryQuestions.length, 2);
@@ -68,4 +77,22 @@ export const getQuestionsForDate = (date: string, questions: Question[]): Questi
   }
 
   return [...mandatoryQuestions, ...rotatingQuestions];
+};
+
+// Get all active evening questions
+export const getEveningQuestionsForDate = (questions: Question[]): Question[] => {
+  return questions.filter(q => q.isActive && q.type === 'evening');
+};
+
+// Format time for display (e.g., "8:00 AM")
+export const formatTime = (timeString: string): string => {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+};
+
+// Generate a URL with parameters for email reminders
+export const generateReminderUrl = (baseUrl: string): string => {
+  return `${baseUrl}?source=email&timestamp=${Date.now()}`;
 };

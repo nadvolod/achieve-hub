@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Sun, Moon } from "lucide-react";
 import { useQuestions, Entry } from "../context/QuestionsContext";
 import { formatDate, groupEntriesByMonth } from "../utils/questionsUtils";
 import QuestionCard from "./QuestionCard";
@@ -48,27 +50,47 @@ const EntryList: React.FC<EntryListProps> = ({ selectedDate }) => {
     );
   }
   
-  // Show single entry when a date is selected
-  if (selectedDate && filteredEntries.length === 1) {
-    const entry = filteredEntries[0];
+  // Show single or multiple entries when a date is selected
+  if (selectedDate && filteredEntries.length > 0) {
     return (
-      <div className="space-y-4 my-6">
+      <div className="space-y-6 my-6">
         <h3 className="text-xl font-medium text-navy-500">
-          {formatDate(entry.date)}
+          {formatDate(selectedDate)}
         </h3>
-        {entry.answers.map(answer => (
-          <QuestionCard
-            key={answer.questionId}
-            question={{
-              id: answer.questionId,
-              text: answer.questionText,
-              isMandatory: false, // We don't know in history view, doesn't affect display much
-              isActive: true
-            }}
-            answer={answer.answer}
-            onAnswerChange={() => {}} // Read-only
-            readOnly={true}
-          />
+        
+        {filteredEntries.map(entry => (
+          <Card key={entry.id} className="mb-6 shadow-sm">
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg font-medium flex items-center gap-2">
+                  {entry.type === 'morning' ? (
+                    <>
+                      <Sun className="h-4 w-4 text-amber-500" />
+                      <span>Morning Reflection</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="h-4 w-4 text-indigo-500" />
+                      <span>Evening Reflection</span>
+                    </>
+                  )}
+                </CardTitle>
+                <Badge variant="outline" className={entry.type === 'morning' ? 'bg-amber-50 text-amber-600' : 'bg-indigo-50 text-indigo-600'}>
+                  {formatDate(entry.date).split(', ')[1]} 
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="space-y-4">
+                {entry.answers.map(answer => (
+                  <div key={answer.questionId} className="mb-4 last:mb-0">
+                    <h4 className="text-sm font-medium text-gray-800 mb-1">{answer.questionText}</h4>
+                    <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded">{answer.answer || "No answer provided"}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
     );
@@ -95,9 +117,18 @@ const EntryList: React.FC<EntryListProps> = ({ selectedDate }) => {
                     }}
                   >
                     <CardHeader className="p-3">
-                      <CardTitle className="text-sm font-medium flex justify-between">
-                        <span>{formatDate(entry.date)}</span>
-                        <span className="text-gray-400 text-xs">{entry.answers.length} answers</span>
+                      <CardTitle className="text-sm font-medium flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          {entry.type === 'morning' ? (
+                            <Sun className="h-4 w-4 text-amber-500" />
+                          ) : (
+                            <Moon className="h-4 w-4 text-indigo-500" />
+                          )}
+                          <span>{formatDate(entry.date)}</span>
+                        </div>
+                        <Badge variant="outline" className={entry.type === 'morning' ? 'bg-amber-50 text-amber-600 text-xs' : 'bg-indigo-50 text-indigo-600 text-xs'}>
+                          {entry.type === 'morning' ? 'Morning' : 'Evening'}
+                        </Badge>
                       </CardTitle>
                     </CardHeader>
                     
