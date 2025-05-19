@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +10,10 @@ type AuthContextType = {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<{success: boolean; message: string}>;
   signOut: () => Promise<void>;
+  currentStreak: number;
+  bestStreak: number;
+  lastActiveDate: string | null;
+  updateStreak: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,7 +22,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Load streak data on auth state change
+  const loadStreakData = async (userId: string | undefined) => {
+    if (!userId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('current_streak, best_streak, last_active_date')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error("Error loading streak data:", error);
+        return;
+      }
+
+      if (data) {
+        setCurrentStreak(data.current_streak || 0);
+        setBestStreak(data.best_streak || 0);
+        setLastActiveDate(data.last_active_date);
+      }
+    } catch (error) {
+      console.error("Failed to load streak data:", error);
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -27,6 +59,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          // Load streak data when user logs in
+          loadStreakData(session.user.id);
+        } else {
+          // Reset streak data when user logs out
+          setCurrentStreak(0);
+          setBestStreak(0);
+          setLastActiveDate(null);
+        }
       }
     );
 
@@ -34,11 +76,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      if (session?.user) {
+        loadStreakData(session.user.id);
+      }
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Update streak function
+  const updateStreak = async () => {
+    if (!user) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    
+    try {
+      // If the last active date is yesterday, increment streak
+      // If it's today, keep streak the same
+      // If it's neither, reset streak to 1
+      
+      let newStreak = 1; // Default to 1 for a new streak
+      let newBestStreak = bestStreak;
+      
+      if (lastActiveDate) {
+        const lastDate = new Date(lastActiveDate);
+        const todayDate = new Date(today);
+        const yesterday = new Date(todayDate);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        const isToday = lastDate.toISOString().split('T')[0] === today;
+        const isYesterday = lastDate.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0];
+        
+        if (isToday) {
+          // Already logged today, keep current streak
+          return;
+        } else if (isYesterday) {
+          // Logged yesterday, increment streak
+          newStreak = currentStreak + 1;
+        }
+      }
+      
+      // Update best streak if needed
+      if (newStreak > bestStreak) {
+        newBestStreak = newStreak;
+      }
+      
+      // Update database
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          current_streak: newStreak,
+          best_streak: newBestStreak,
+          last_active_date: today
+        })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setCurrentStreak(newStreak);
+      setBestStreak(newBestStreak);
+      setLastActiveDate(today);
+      
+    } catch (error) {
+      console.error("Error updating streak:", error);
+    }
+  };
 
   const signInWithEmail = async (email: string, password: string) => {
     try {
@@ -143,7 +247,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, signInWithEmail, signUpWithEmail, signOut }}>
+    <AuthContext.Provider value={{ 
+      session, 
+      user, 
+      loading, 
+      signInWithEmail, 
+      signUpWithEmail, 
+      signOut,
+      currentStreak,
+      bestStreak,
+      lastActiveDate,
+      updateStreak
+    }}>
       {children}
     </AuthContext.Provider>
   );

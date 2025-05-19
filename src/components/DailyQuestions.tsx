@@ -7,10 +7,20 @@ import { Sun, Moon } from "lucide-react";
 import QuestionCard from "./QuestionCard";
 import { useQuestions } from "../context/QuestionsContext";
 import { formatDate, getTodayDateString } from "../utils/questionsUtils";
+import { useAuth } from "../context/AuthContext";
+import StreakDisplay from "./StreakDisplay";
 
 const DailyQuestions: React.FC = () => {
-  const { todaysMorningQuestions, todaysEveningQuestions, saveEntry, getEntries, refreshTodaysQuestions } = useQuestions();
+  const { 
+    todaysMorningQuestions, 
+    todaysEveningQuestions, 
+    saveEntry, 
+    getEntries, 
+    refreshTodaysQuestions 
+  } = useQuestions();
+  
   const { toast } = useToast();
+  const { updateStreak } = useAuth();
   const [morningAnswers, setMorningAnswers] = useState<Record<string, string>>({});
   const [eveningAnswers, setEveningAnswers] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -100,11 +110,15 @@ const DailyQuestions: React.FC = () => {
         answer: morningAnswers[question.id] || ''
       }));
       
-      saveEntry({
+      // Save entry
+      await saveEntry({
         date: new Date().toISOString(),
         type: 'morning',
         answers: entryAnswers
       });
+      
+      // Update user's streak
+      await updateStreak();
       
       toast({
         title: "Morning entry saved",
@@ -145,11 +159,15 @@ const DailyQuestions: React.FC = () => {
         answer: eveningAnswers[question.id] || ''
       }));
       
-      saveEntry({
+      // Save entry
+      await saveEntry({
         date: new Date().toISOString(),
         type: 'evening',
         answers: entryAnswers
       });
+      
+      // Update user's streak
+      await updateStreak();
       
       toast({
         title: "Evening entry saved",
@@ -177,6 +195,8 @@ const DailyQuestions: React.FC = () => {
   
   return (
     <div className="mt-4">
+      <StreakDisplay />
+      
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-navy-500">{formattedDate}</h2>
         <Button 
