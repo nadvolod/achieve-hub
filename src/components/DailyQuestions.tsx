@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -30,6 +31,19 @@ const DailyQuestions: React.FC = () => {
   
   const today = getTodayDateString();
   const formattedDate = formatDate(today);
+  
+  // Sort questions to put required ones first
+  const sortedMorningQuestions = [...todaysMorningQuestions].sort((a, b) => {
+    if (a.isMandatory && !b.isMandatory) return -1;
+    if (!a.isMandatory && b.isMandatory) return 1;
+    return a.position - b.position;
+  });
+
+  const sortedEveningQuestions = [...todaysEveningQuestions].sort((a, b) => {
+    if (a.isMandatory && !b.isMandatory) return -1;
+    if (!a.isMandatory && b.isMandatory) return 1;
+    return a.position - b.position;
+  });
   
   // Load any existing entries for today
   useEffect(() => {
@@ -106,30 +120,69 @@ const DailyQuestions: React.FC = () => {
       clearTimeout(autoSaveTimer);
     }
     
-    // Set a new timer for auto-save (5 seconds after typing stops)
+    // Set a new timer for auto-save (3 seconds after typing stops)
     const timer = setTimeout(() => {
       autoSaveEntries();
-    }, 5000);
+    }, 3000);
     
     setAutoSaveTimer(timer);
   }, [autoSaveTimer]);
   
   // Function to perform the auto-save
   const autoSaveEntries = useCallback(async () => {
-    const currentTime = new Date();
-    const activeAnswers = activeTab === "morning" ? morningAnswers : eveningAnswers;
-    const activeQuestions = activeTab === "morning" ? todaysMorningQuestions : todaysEveningQuestions;
-    
-    // Check if there are any non-empty answers to save
-    const hasAnswers = Object.values(activeAnswers).some(answer => answer.trim() !== '');
-    
-    // Don't auto-save if no answers or if last auto-save was less than 10 seconds ago
-    if (!hasAnswers || (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 10000)) {
-      setSaveStatus("idle");
-      return;
-    }
-    
     try {
+      const currentTime = new Date();
+      
+      // Don't auto-save if last auto-save was less than 5 seconds ago
+      if (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 5000) {
+        setSaveStatus("idle");
+        return;
+      }
+      
+      const activeAnswers = activeTab === "morning" ? morningAnswers : eveningAnswers;
+      const activeQuestions = activeTab === "morning" ? todaysMorningQuestions : todaysEveningQuestions;
+      
+      // Check if there are any non-empty answers to save
+      const hasAnswers = Object.values(activeAnswers).some(answer => answer.trim() !== '');
+      
+      if (!hasAnswers) {
+        setSaveStatus("idle");
+        return;
+      }
+      
+      // Get the current entries to check for existing one
+      const todaysEntries = getEntries(today);
+      const existingEntry = todaysEntries.find(entry => entry.type === activeTab);
+      
+      // Only proceed if we don't already have an entry or if answers have changed
+      if (existingEntry) {
+        // We already have an entry for this tab today, so we need to compare answers
+        let hasChanges = false;
+        
+        // Create a map of existing answers for easy lookup
+        const existingAnswerMap: Record<string, string> = {};
+        existingEntry.answers.forEach(answer => {
+          existingAnswerMap[answer.questionId] = answer.answer;
+        });
+        
+        // Check if any answers have changed
+        for (const question of activeQuestions) {
+          const newAnswer = activeAnswers[question.id] || '';
+          const oldAnswer = existingAnswerMap[question.id] || '';
+          
+          if (newAnswer !== oldAnswer) {
+            hasChanges = true;
+            break;
+          }
+        }
+        
+        if (!hasChanges) {
+          setSaveStatus("saved");
+          setTimeout(() => setSaveStatus("idle"), 3000);
+          return;
+        }
+      }
+      
       const entryAnswers = activeQuestions.map(question => ({
         questionId: question.id,
         questionText: question.text,
@@ -157,7 +210,7 @@ const DailyQuestions: React.FC = () => {
       console.error("Error auto-saving:", error);
       setSaveStatus("idle");
     }
-  }, [activeTab, morningAnswers, eveningAnswers, todaysMorningQuestions, todaysEveningQuestions, saveEntry, lastAutoSave]);
+  }, [activeTab, morningAnswers, eveningAnswers, todaysMorningQuestions, todaysEveningQuestions, saveEntry, lastAutoSave, getEntries, today]);
   
   // Cleanup auto-save timer on unmount
   useEffect(() => {
@@ -316,7 +369,7 @@ const DailyQuestions: React.FC = () => {
         </TabsList>
         
         <TabsContent value="morning" className="space-y-4">
-          {todaysMorningQuestions.map(question => (
+          {sortedMorningQuestions.map(question => (
             <QuestionCard
               key={question.id}
               question={question}
@@ -337,7 +390,7 @@ const DailyQuestions: React.FC = () => {
         </TabsContent>
         
         <TabsContent value="evening" className="space-y-4">
-          {todaysEveningQuestions.map(question => (
+          {sortedEveningQuestions.map(question => (
             <QuestionCard
               key={question.id}
               question={question}
