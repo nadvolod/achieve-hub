@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, Save } from "lucide-react";
 import QuestionCard from "./QuestionCard";
 import { useQuestions } from "../context/QuestionsContext";
 import { formatDate, getTodayDateString } from "../utils/questionsUtils";
@@ -24,9 +25,6 @@ const DailyQuestions: React.FC = () => {
   const [eveningAnswers, setEveningAnswers] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("morning");
-  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
-  const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   
   const today = getTodayDateString();
   const formattedDate = formatDate(today);
@@ -93,11 +91,6 @@ const DailyQuestions: React.FC = () => {
       ...prev,
       [questionId]: answer
     }));
-    
-    // Trigger auto-save timer
-    scheduleAutoSave();
-    // Set status to show we're going to save
-    setSaveStatus("saving");
   };
   
   const handleEveningAnswerChange = (questionId: string, answer: string) => {
@@ -105,153 +98,55 @@ const DailyQuestions: React.FC = () => {
       ...prev,
       [questionId]: answer
     }));
-    
-    // Trigger auto-save timer
-    scheduleAutoSave();
-    // Set status to show we're going to save
-    setSaveStatus("saving");
   };
   
-  // Auto-save functionality
-  const scheduleAutoSave = useCallback(() => {
-    // Clear existing timer if there is one
-    if (autoSaveTimer) {
-      clearTimeout(autoSaveTimer);
-    }
+  const handleSaveAll = async () => {
+    setIsSaving(true);
     
-    // Set a new timer for auto-save (nearly immediate for better UX)
-    const timer = setTimeout(() => {
-      autoSaveEntries();
-    }, 500);
-    
-    setAutoSaveTimer(timer);
-  }, [autoSaveTimer]);
-  
-  // Function to perform the auto-save
-  const autoSaveEntries = useCallback(async () => {
     try {
-      const currentTime = new Date();
+      // Save both morning and evening entries
+      const activeQuestions = activeTab === "morning" ? sortedMorningQuestions : sortedEveningQuestions;
+      const activeAnswers = activeTab === "morning" ? morningAnswers : eveningAnswers;
       
-      // Don't auto-save if last auto-save was less than 300ms ago
-      if (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 300) {
-        setSaveStatus("idle");
+      // Validate mandatory questions for current tab
+      const mandatoryQuestions = activeQuestions.filter(q => q.isMandatory);
+      const unansweredMandatory = mandatoryQuestions.filter(q => !activeAnswers[q.id]?.trim());
+      
+      if (unansweredMandatory.length > 0) {
+        toast({
+          title: "Missing required answers",
+          description: `Please answer all required ${activeTab} questions before saving.`,
+          variant: "destructive"
+        });
+        setIsSaving(false);
         return;
       }
       
-      // CRITICAL FIX: Always save both morning and evening answers
-      // regardless of which tab is active, as long as there's content
-      
-      // Process morning answers - save them if there's any content
-      const hasMorningAnswers = Object.values(morningAnswers).some(answer => answer?.trim() !== '');
-      
-      if (hasMorningAnswers) {
-        const morningEntryAnswers = todaysMorningQuestions.map(question => ({
-          questionId: question.id,
-          questionText: question.text,
-          answer: morningAnswers[question.id] || ''
-        }));
-        
-        // Save morning answers
-        await saveEntry({
-          date: today,
-          type: 'morning',
-          answers: morningEntryAnswers
-        });
-      }
-      
-      // Process evening answers - save them if there's any content
-      const hasEveningAnswers = Object.values(eveningAnswers).some(answer => answer?.trim() !== '');
-      
-      if (hasEveningAnswers) {
-        const eveningEntryAnswers = todaysEveningQuestions.map(question => ({
-          questionId: question.id,
-          questionText: question.text,
-          answer: eveningAnswers[question.id] || ''
-        }));
-        
-        // Save evening answers
-        await saveEntry({
-          date: today,
-          type: 'evening',
-          answers: eveningEntryAnswers
-        });
-      }
-      
-      // Update last auto-save timestamp
-      setLastAutoSave(currentTime);
-      
-      // Update save status to "saved"
-      setSaveStatus("saved");
-      
-      // Reset status to idle after 2 seconds
-      setTimeout(() => {
-        setSaveStatus("idle");
-      }, 2000);
-    } catch (error) {
-      console.error("Error auto-saving:", error);
-      setSaveStatus("idle");
-      toast({
-        title: "Auto-save failed",
-        description: "There was a problem saving your answers. Please try again.",
-        variant: "destructive"
-      });
-    }
-  }, [morningAnswers, eveningAnswers, todaysMorningQuestions, todaysEveningQuestions, saveEntry, lastAutoSave, today, toast]);
-  
-  // Cleanup auto-save timer on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveTimer) {
-        clearTimeout(autoSaveTimer);
-      }
-    };
-  }, [autoSaveTimer]);
-  
-  // Add an effect to handle tab changes and ensure auto-save happens
-  useEffect(() => {
-    // When tab changes, trigger an auto-save to ensure we don't lose data
-    autoSaveEntries();
-  }, [activeTab, autoSaveEntries]);
-  
-  const handleSaveMorning = async () => {
-    // Validate mandatory questions are answered
-    const mandatoryQuestions = todaysMorningQuestions.filter(q => q.isMandatory);
-    const unansweredMandatory = mandatoryQuestions.filter(q => !morningAnswers[q.id]?.trim());
-    
-    if (unansweredMandatory.length > 0) {
-      toast({
-        title: "Missing required answers",
-        description: "Please answer all required morning questions before saving.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSaving(true);
-    
-    try {
-      const entryAnswers = todaysMorningQuestions.map(question => ({
+      // Process entries for current tab
+      const entryAnswers = activeQuestions.map(question => ({
         questionId: question.id,
         questionText: question.text,
-        answer: morningAnswers[question.id] || ''
+        answer: activeAnswers[question.id] || ''
       }));
       
-      // Save entry
-      await saveEntry({
-        date: today,
-        type: 'morning',
-        answers: entryAnswers
-      });
+      // Only save if there are answers to save
+      if (entryAnswers.some(answer => answer.answer.trim() !== '')) {
+        await saveEntry({
+          date: today,
+          type: activeTab as 'morning' | 'evening',
+          answers: entryAnswers
+        });
+      }
       
-      // Update user's streak
+      // Update streak after saving
       await updateStreak();
       
       toast({
-        title: "Morning entry saved",
-        description: "Your morning reflections have been saved successfully."
+        title: `${activeTab === "morning" ? "Morning" : "Evening"} entries saved`,
+        description: `Your ${activeTab} reflections have been saved successfully.`
       });
     } catch (error) {
-      console.error("Error saving entry:", error);
+      console.error("Error saving entries:", error);
       toast({
         title: "Error saving",
         description: "There was a problem saving your answers.",
@@ -262,55 +157,6 @@ const DailyQuestions: React.FC = () => {
     }
   };
   
-  const handleSaveEvening = async () => {
-    // Validate mandatory questions are answered
-    const mandatoryQuestions = todaysEveningQuestions.filter(q => q.isMandatory);
-    const unansweredMandatory = mandatoryQuestions.filter(q => !eveningAnswers[q.id]?.trim());
-    
-    if (unansweredMandatory.length > 0) {
-      toast({
-        title: "Missing required answers",
-        description: "Please answer all required evening questions before saving.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSaving(true);
-    
-    try {
-      const entryAnswers = todaysEveningQuestions.map(question => ({
-        questionId: question.id,
-        questionText: question.text,
-        answer: eveningAnswers[question.id] || ''
-      }));
-      
-      // Save entry
-      await saveEntry({
-        date: today,
-        type: 'evening',
-        answers: entryAnswers
-      });
-      
-      // Update user's streak
-      await updateStreak();
-      
-      toast({
-        title: "Evening entry saved",
-        description: "Your evening reflections have been saved successfully."
-      });
-    } catch (error) {
-      console.error("Error saving entry:", error);
-      toast({
-        title: "Error saving",
-        description: "There was a problem saving your answers.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleRefresh = () => {
     refreshTodaysQuestions();
     toast({
@@ -319,21 +165,8 @@ const DailyQuestions: React.FC = () => {
     });
   };
   
-  // Render save status indicator
-  const renderSaveStatus = () => {
-    if (saveStatus === "idle") {
-      return null;
-    }
-    
-    return (
-      <div className="text-xs text-gray-500 italic absolute bottom-4 right-4">
-        {saveStatus === "saving" ? "Saving..." : "Saved"}
-      </div>
-    );
-  };
-  
   return (
-    <div className="mt-4 relative">
+    <div className="mt-4 relative pb-16">
       <StreakDisplay />
       
       <div className="flex justify-between items-center mb-6">
@@ -350,11 +183,7 @@ const DailyQuestions: React.FC = () => {
       
       <Tabs 
         value={activeTab} 
-        onValueChange={(value) => {
-          // Save current tab answers before switching
-          autoSaveEntries();
-          setActiveTab(value);
-        }} 
+        onValueChange={setActiveTab} 
         className="w-full"
       >
         <TabsList className="grid grid-cols-2 mb-4">
@@ -377,16 +206,6 @@ const DailyQuestions: React.FC = () => {
               onAnswerChange={(answer) => handleMorningAnswerChange(question.id, answer)}
             />
           ))}
-          
-          <div className="flex justify-end mt-6 mb-16">
-            <Button 
-              onClick={handleSaveMorning} 
-              disabled={isSaving}
-              className="bg-teal-400 hover:bg-teal-500 text-white"
-            >
-              {isSaving ? "Saving..." : "Save Morning Reflections"}
-            </Button>
-          </div>
         </TabsContent>
         
         <TabsContent value="evening" className="space-y-4">
@@ -398,20 +217,22 @@ const DailyQuestions: React.FC = () => {
               onAnswerChange={(answer) => handleEveningAnswerChange(question.id, answer)}
             />
           ))}
-          
-          <div className="flex justify-end mt-6 mb-16">
-            <Button 
-              onClick={handleSaveEvening} 
-              disabled={isSaving}
-              className="bg-teal-400 hover:bg-teal-500 text-white"
-            >
-              {isSaving ? "Saving..." : "Save Evening Reflections"}
-            </Button>
-          </div>
         </TabsContent>
       </Tabs>
       
-      {renderSaveStatus()}
+      {/* Floating Save Button */}
+      <div className="fixed bottom-8 right-8 z-20">
+        <Button
+          onClick={handleSaveAll}
+          disabled={isSaving}
+          className="bg-teal-500 hover:bg-teal-600 text-white rounded-full shadow-lg h-14 w-14 flex items-center justify-center"
+        >
+          {isSaving ? 
+            <span className="animate-spin">⟳</span> : 
+            <Save className="h-6 w-6" />
+          }
+        </Button>
+      </div>
     </div>
   );
 };
