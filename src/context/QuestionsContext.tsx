@@ -1,16 +1,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from './AuthContext';
-import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from "./AuthContext";
+import { useToast } from "@/components/ui/use-toast";
+
+// Type definitions
+export type QuestionType = 'morning' | 'evening';
 
 export type Question = {
   id: string;
   text: string;
-  isMandatory: boolean;
+  type: QuestionType;
   isActive: boolean;
+  isMandatory: boolean;
   position: number;
-  type: 'morning' | 'evening';
 };
 
 export type Answer = {
@@ -22,19 +25,19 @@ export type Answer = {
 export type Entry = {
   id: string;
   date: string;
-  type: 'morning' | 'evening';
+  type: QuestionType;
   answers: Answer[];
 };
 
-type QuestionsContextType = {
+export type QuestionsContextType = {
   questions: Question[];
   entries: Entry[];
   isLoading: boolean;
-  fetchQuestions: () => Promise<void>;
   addQuestion: (question: Omit<Question, 'id' | 'position'>) => Promise<void>;
-  updateQuestion: (id: string, updates: Partial<Omit<Question, 'id'>>) => Promise<void>;
+  updateQuestion: (id: string, updates: Partial<Omit<Question, 'id' | 'position'>>) => Promise<void>;
+  toggleQuestionActive: (id: string) => Promise<void>;
   removeQuestion: (id: string) => Promise<void>;
-  reorderQuestions: (questionIds: string[], type: 'morning' | 'evening') => Promise<void>;
+  reorderQuestions: (questionIds: string[], type: QuestionType) => Promise<void>;
   saveEntry: (entry: Omit<Entry, 'id'>) => Promise<void>;
   todaysMorningQuestions: Question[];
   todaysEveningQuestions: Question[];
@@ -44,31 +47,74 @@ type QuestionsContextType = {
 
 const QuestionsContext = createContext<QuestionsContextType | undefined>(undefined);
 
-const defaultMorningQuestions: Omit<Question, 'id' | 'position'>[] = [
-  { text: "How can I give even more fully consistently?", isMandatory: true, isActive: true, type: 'morning' },
-  { text: "Who do I need to be to be able to go at 95% 6 days of the week?", isMandatory: true, isActive: true, type: 'morning' },
-  { text: "Am I happy?", isMandatory: true, isActive: true, type: 'morning' },
-  { text: "Am I having fun?", isMandatory: false, isActive: true, type: 'morning' },
-  { text: "How can I live with even more courage and determination?", isMandatory: false, isActive: true, type: 'morning' },
-  { text: "Did I live with level 10 energy? Who must I become to live with level 10 energy 6/7 days?", isMandatory: false, isActive: true, type: 'morning' },
-  { text: "Was I my best yesterday (1-10)?", isMandatory: false, isActive: true, type: 'morning' },
-  { text: "How can I love even more (3 human needs)?", isMandatory: false, isActive: true, type: 'morning' },
-  { text: "How do I serve even more?", isMandatory: false, isActive: true, type: 'morning' },
-  { text: "How can I grow even more?", isMandatory: false, isActive: true, type: 'morning' },
+const dummyQuestions: Question[] = [
+  // Morning questions
+  {
+    id: "1",
+    text: "How did you sleep?",
+    type: 'morning',
+    isActive: true,
+    isMandatory: true,
+    position: 1
+  },
+  {
+    id: "2",
+    text: "What are you grateful for today?",
+    type: 'morning',
+    isActive: true,
+    isMandatory: false,
+    position: 2
+  },
+  {
+    id: "3",
+    text: "What would make today great?",
+    type: 'morning',
+    isActive: true,
+    isMandatory: false,
+    position: 3
+  },
+  // Evening questions
+  {
+    id: "4",
+    text: "What did you accomplish today?",
+    type: 'evening',
+    isActive: true,
+    isMandatory: true,
+    position: 1
+  },
+  {
+    id: "5",
+    text: "What could you have done better today?",
+    type: 'evening',
+    isActive: true,
+    isMandatory: false,
+    position: 2
+  },
 ];
 
-const defaultEveningQuestions: Omit<Question, 'id' | 'position'>[] = [
-  { text: "What did I accomplish today?", isMandatory: true, isActive: true, type: 'evening' },
-  { text: "Did I complete all my planned activities? Why?", isMandatory: true, isActive: true, type: 'evening' },
-  { text: "What should I focus on tomorrow?", isMandatory: true, isActive: true, type: 'evening' },
-  { text: "What should I do tomorrow to make it a better day?", isMandatory: false, isActive: true, type: 'evening' },
-  { text: "How did I do with my emotions? What was the moment that made me unconscious?", isMandatory: false, isActive: true, type: 'evening' },
-  { text: "What fun did I have today?", isMandatory: false, isActive: true, type: 'evening' },
-  { text: "Who should I spend more time with and why?", isMandatory: false, isActive: true, type: 'evening' },
-  { text: "What would I do differently if I could live my day over?", isMandatory: false, isActive: true, type: 'evening' },
+const dummyEntries: Entry[] = [
+  {
+    id: uuidv4(),
+    date: '2024-01-01',
+    type: 'morning',
+    answers: [
+      { questionId: '1', questionText: 'How did you sleep?', answer: 'Great!' },
+      { questionId: '2', questionText: 'What are you grateful for today?', answer: 'My family' },
+      { questionId: '3', questionText: 'What would make today great?', answer: 'A good workout' },
+    ],
+  },
+  {
+    id: uuidv4(),
+    date: '2024-01-01',
+    type: 'evening',
+    answers: [
+      { questionId: '4', questionText: 'What did you accomplish today?', answer: 'Finished my work' },
+      { questionId: '5', questionText: 'What could you have done better today?', answer: 'Spent less time on social media' },
+    ],
+  },
 ];
 
-export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const QuestionsProvider = ({ children }: { children: React.ReactNode }) => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -78,86 +124,84 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { toast } = useToast();
 
   const fetchQuestions = async () => {
-    if (!user) return;
-    
     try {
-      setIsLoading(true);
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('user_questions')
         .select('*')
         .order('position', { ascending: true });
-        
+
       if (error) throw error;
-      
-      if (data) {
-        const formattedQuestions: Question[] = data.map(q => ({
-          id: q.id,
-          text: q.text,
-          isMandatory: q.is_mandatory,
-          isActive: q.is_active,
-          position: q.position,
-          type: q.type as 'morning' | 'evening'
-        }));
-        
-        setQuestions(formattedQuestions);
-      }
+
+      const formattedQuestions: Question[] = data.map(q => ({
+        id: q.id,
+        text: q.text,
+        type: q.type as QuestionType,
+        isActive: q.is_active,
+        isMandatory: q.is_mandatory,
+        position: q.position
+      }));
+
+      setQuestions(formattedQuestions);
     } catch (error) {
-      console.error('Error fetching questions:', error);
+      console.error("Error fetching questions:", error);
       toast({
-        title: "Failed to load questions",
-        description: "There was an error loading your questions. Please try again.",
+        title: "Error",
+        description: "Failed to load your questions",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
-  
+
   const fetchEntries = async () => {
-    if (!user) return;
-    
     try {
-      setIsLoading(true);
-      // First get all entries
+      if (!user) return;
+
+      // Fetch entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('user_entries')
-        .select('*')
-        .order('date', { ascending: false });
-        
+        .select('*');
+
       if (entriesError) throw entriesError;
+
+      // Fetch answers for all entries
+      const entryIds = entriesData.map(entry => entry.id);
       
-      if (entriesData) {
-        // Then get all answers for those entries
-        const { data: answersData, error: answersError } = await supabase
-          .from('entry_answers')
-          .select('*')
-          .in('entry_id', entriesData.map(e => e.id));
-          
-        if (answersError) throw answersError;
-        
-        // Format and combine data
-        const formattedEntries: Entry[] = entriesData.map(entry => {
-          const entryAnswers = answersData?.filter(a => a.entry_id === entry.id) || [];
-          
-          return {
-            id: entry.id,
-            date: entry.date,
-            type: entry.type as 'morning' | 'evening',
-            answers: entryAnswers.map(a => ({
-              questionId: a.question_id,
-              questionText: a.question_text,
-              answer: a.answer
-            }))
-          };
-        });
-        
-        setEntries(formattedEntries);
+      if (entryIds.length === 0) {
+        setEntries([]);
+        return;
       }
+
+      const { data: answersData, error: answersError } = await supabase
+        .from('entry_answers')
+        .select('*')
+        .in('entry_id', entryIds);
+
+      if (answersError) throw answersError;
+
+      // Map and combine the data
+      const formattedEntries: Entry[] = entriesData.map(entry => {
+        const entryAnswers = answersData.filter(answer => answer.entry_id === entry.id);
+        
+        return {
+          id: entry.id,
+          date: entry.date,
+          type: entry.type as QuestionType,
+          answers: entryAnswers.map(a => ({
+            questionId: a.question_id,
+            questionText: a.question_text,
+            answer: a.answer
+          }))
+        };
+      });
+
+      setEntries(formattedEntries);
     } catch (error) {
-      console.error('Error fetching entries:', error);
+      console.error("Error fetching entries:", error);
       toast({
-        title: "Failed to load entries",
-        description: "There was an error loading your journal entries. Please try again.",
+        title: "Error",
+        description: "Failed to load your entries",
         variant: "destructive",
       });
     } finally {
@@ -202,75 +246,125 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addQuestion = async (question: Omit<Question, 'id' | 'position'>) => {
     if (!user) return;
-    
+
     try {
-      // Find max position for the question type
-      const maxPosition = questions
-        .filter(q => q.type === question.type)
-        .reduce((max, q) => (q.position > max ? q.position : max), 0);
-      
+      // Get current highest position for the question type
+      const maxPosition = Math.max(
+        ...questions
+          .filter(q => q.type === question.type)
+          .map(q => q.position),
+        0
+      );
+
+      // Insert into Supabase
       const { data, error } = await supabase
         .from('user_questions')
         .insert([{
           user_id: user.id,
           text: question.text,
-          is_mandatory: question.isMandatory,
+          type: question.type,
           is_active: question.isActive,
-          position: maxPosition + 1,
-          type: question.type
+          is_mandatory: question.isMandatory,
+          position: maxPosition + 1
         }])
         .select();
-        
+
       if (error) throw error;
       
+      // Add to local state
       if (data && data[0]) {
         const newQuestion: Question = {
           id: data[0].id,
           text: data[0].text,
-          isMandatory: data[0].is_mandatory,
+          type: data[0].type as QuestionType,
           isActive: data[0].is_active,
-          position: data[0].position,
-          type: data[0].type
+          isMandatory: data[0].is_mandatory,
+          position: data[0].position
         };
         
         setQuestions(prev => [...prev, newQuestion]);
+        
+        toast({
+          title: "Success",
+          description: "Question added successfully",
+        });
       }
     } catch (error) {
-      console.error('Error adding question:', error);
+      console.error("Error adding question:", error);
       toast({
-        title: "Failed to add question",
-        description: "There was an error adding your question. Please try again.",
+        title: "Error",
+        description: "Failed to add question",
         variant: "destructive",
       });
     }
   };
 
-  const updateQuestion = async (id: string, updates: Partial<Omit<Question, 'id'>>) => {
+  const updateQuestion = async (id: string, updates: Partial<Omit<Question, 'id' | 'position'>>) => {
     if (!user) return;
-    
+
     try {
-      const updateData: any = {};
-      if ('text' in updates) updateData.text = updates.text;
-      if ('isMandatory' in updates) updateData.is_mandatory = updates.isMandatory;
-      if ('isActive' in updates) updateData.is_active = updates.isActive;
-      if ('position' in updates) updateData.position = updates.position;
-      if ('type' in updates) updateData.type = updates.type;
+      // Prepare updates in Supabase format
+      const supabaseUpdates: any = {};
+      if (updates.text !== undefined) supabaseUpdates.text = updates.text;
+      if (updates.isActive !== undefined) supabaseUpdates.is_active = updates.isActive;
+      if (updates.isMandatory !== undefined) supabaseUpdates.is_mandatory = updates.isMandatory;
       
+      // No position updates allowed here, use reorderQuestions for that
+      
+      // Update in Supabase
       const { error } = await supabase
         .from('user_questions')
-        .update(updateData)
+        .update(supabaseUpdates)
         .eq('id', id);
-        
+
       if (error) throw error;
       
-      setQuestions(prev => prev.map(q => 
-        q.id === id ? { ...q, ...updates } : q
-      ));
-    } catch (error) {
-      console.error('Error updating question:', error);
+      // Update local state
+      setQuestions(prev => 
+        prev.map(q => q.id === id ? { ...q, ...updates } : q)
+      );
+      
       toast({
-        title: "Failed to update question",
-        description: "There was an error updating your question. Please try again.",
+        title: "Success",
+        description: "Question updated successfully",
+      });
+    } catch (error) {
+      console.error("Error updating question:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update question",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const toggleQuestionActive = async (id: string) => {
+    const question = questions.find(q => q.id === id);
+    if (!question || !user) return;
+    
+    try {
+      // Update in Supabase
+      const { error } = await supabase
+        .from('user_questions')
+        .update({ is_active: !question.isActive })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Update local state
+      setQuestions(prev => 
+        prev.map(q => q.id === id ? { ...q, isActive: !q.isActive } : q)
+      );
+      
+      toast({
+        title: "Success",
+        description: `Question ${question.isActive ? 'disabled' : 'enabled'}`,
+      });
+    } catch (error) {
+      console.error("Error toggling question active state:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update question",
         variant: "destructive",
       });
     }
@@ -280,72 +374,75 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!user) return;
     
     try {
+      // Delete from Supabase
       const { error } = await supabase
         .from('user_questions')
         .delete()
         .eq('id', id);
-        
+
       if (error) throw error;
       
+      // Update local state
       setQuestions(prev => prev.filter(q => q.id !== id));
-    } catch (error) {
-      console.error('Error removing question:', error);
+      
       toast({
-        title: "Failed to remove question",
-        description: "There was an error removing your question. Please try again.",
+        title: "Success",
+        description: "Question deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error removing question:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete question",
         variant: "destructive",
       });
     }
   };
-  
-  const reorderQuestions = async (questionIds: string[], type: 'morning' | 'evening') => {
-    if (!user || questionIds.length === 0) return;
+
+  const reorderQuestions = async (questionIds: string[], type: QuestionType) => {
+    if (!user) return;
     
     try {
-      // Update positions in the local state
+      // Update positions in local state first
       const updatedQuestions = [...questions];
       
-      // We'll only reorder questions of the specified type
-      const typeQuestions = updatedQuestions.filter(q => q.type === type);
-      const otherQuestions = updatedQuestions.filter(q => q.type !== type);
-      
-      // Create a mapping of id to new position
-      const updates: { id: string, position: number }[] = [];
-      
       questionIds.forEach((id, index) => {
-        const question = typeQuestions.find(q => q.id === id);
-        if (question) {
-          question.position = index + 1;
-          updates.push({ id, position: index + 1 });
+        const questionIndex = updatedQuestions.findIndex(q => q.id === id);
+        if (questionIndex !== -1) {
+          updatedQuestions[questionIndex].position = index + 1;
         }
       });
       
-      // Update the database (in batch if possible)
+      setQuestions(updatedQuestions);
+      
+      // Create an array of updates for Supabase
+      const updates = questionIds.map((id, index) => ({
+        id,
+        position: index + 1
+      }));
+      
+      // Perform batch update in Supabase
       for (const update of updates) {
         const { error } = await supabase
           .from('user_questions')
           .update({ position: update.position })
           .eq('id', update.id);
-          
+        
         if (error) throw error;
       }
       
-      // Update the local state
-      setQuestions([...typeQuestions, ...otherQuestions]);
-      
       toast({
-        title: "Questions reordered",
-        description: "Your questions have been successfully reordered.",
+        title: "Success",
+        description: "Questions reordered successfully",
       });
     } catch (error) {
-      console.error('Error reordering questions:', error);
+      console.error("Error reordering questions:", error);
       toast({
-        title: "Failed to reorder questions",
-        description: "There was an error reordering your questions. Please try again.",
+        title: "Error",
+        description: "Failed to reorder questions",
         variant: "destructive",
       });
-      
-      // Revert to the original order by fetching again
+      // Refresh questions to restore original order
       fetchQuestions();
     }
   };
@@ -354,22 +451,23 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!user) return;
     
     try {
-      // First insert the entry
+      // First save the entry
       const { data: entryData, error: entryError } = await supabase
         .from('user_entries')
-        .insert([{
+        .insert({
           user_id: user.id,
           date: entry.date,
           type: entry.type
-        }])
+        })
         .select();
-        
+      
       if (entryError) throw entryError;
       
+      // Then save each answer
       if (entryData && entryData[0]) {
         const entryId = entryData[0].id;
         
-        // Then insert all answers
+        // Prepare answers for insertion
         const answersToInsert = entry.answers.map(answer => ({
           entry_id: entryId,
           question_id: answer.questionId,
@@ -380,7 +478,7 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const { error: answersError } = await supabase
           .from('entry_answers')
           .insert(answersToInsert);
-          
+        
         if (answersError) throw answersError;
         
         // Update local state
@@ -391,18 +489,18 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           answers: entry.answers
         };
         
-        setEntries(prev => [newEntry, ...prev]);
+        setEntries(prev => [...prev, newEntry]);
         
         toast({
-          title: "Entry saved",
-          description: `Your ${entry.type} reflection has been saved successfully.`,
+          title: "Success",
+          description: "Your responses have been saved",
         });
       }
     } catch (error) {
-      console.error('Error saving entry:', error);
+      console.error("Error saving entry:", error);
       toast({
-        title: "Failed to save entry",
-        description: "There was an error saving your reflection. Please try again.",
+        title: "Error",
+        description: "Failed to save your responses",
         variant: "destructive",
       });
     }
@@ -414,9 +512,9 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         questions,
         entries,
         isLoading,
-        fetchQuestions,
         addQuestion,
         updateQuestion,
+        toggleQuestionActive,
         removeQuestion,
         reorderQuestions,
         saveEntry,
@@ -434,7 +532,7 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 export const useQuestions = () => {
   const context = useContext(QuestionsContext);
   if (context === undefined) {
-    throw new Error('useQuestions must be used within a QuestionsProvider');
+    throw new Error("useQuestions must be used within a QuestionsProvider");
   }
   return context;
 };
