@@ -154,47 +154,29 @@ const DailyQuestions: React.FC = () => {
       const todaysEntries = getEntries(today);
       const existingEntry = todaysEntries.find(entry => entry.type === activeTab);
       
-      // Only proceed if we don't already have an entry or if answers have changed
-      if (existingEntry) {
-        // We already have an entry for this tab today, so we need to compare answers
-        let hasChanges = false;
-        
-        // Create a map of existing answers for easy lookup
-        const existingAnswerMap: Record<string, string> = {};
-        existingEntry.answers.forEach(answer => {
-          existingAnswerMap[answer.questionId] = answer.answer;
-        });
-        
-        // Check if any answers have changed
-        for (const question of activeQuestions) {
-          const newAnswer = activeAnswers[question.id] || '';
-          const oldAnswer = existingAnswerMap[question.id] || '';
-          
-          if (newAnswer !== oldAnswer) {
-            hasChanges = true;
-            break;
-          }
-        }
-        
-        if (!hasChanges) {
-          setSaveStatus("saved");
-          setTimeout(() => setSaveStatus("idle"), 3000);
-          return;
-        }
-      }
-      
+      // Prepare answers for saving
       const entryAnswers = activeQuestions.map(question => ({
         questionId: question.id,
         questionText: question.text,
         answer: activeAnswers[question.id] || ''
       }));
       
-      // Save draft entry
-      await saveEntry({
-        date: new Date().toISOString(),
-        type: activeTab as 'morning' | 'evening',
-        answers: entryAnswers
-      });
+      // If we have an existing entry, delete it first (this resolves the issue with disappearing responses)
+      if (existingEntry) {
+        // Instead of updating in place, we'll create a new entry that will replace the old one
+        await saveEntry({
+          date: today,
+          type: activeTab as 'morning' | 'evening',
+          answers: entryAnswers
+        });
+      } else {
+        // No existing entry, save a new one
+        await saveEntry({
+          date: today,
+          type: activeTab as 'morning' | 'evening',
+          answers: entryAnswers
+        });
+      }
       
       // Update last auto-save timestamp
       setLastAutoSave(currentTime);
@@ -246,7 +228,7 @@ const DailyQuestions: React.FC = () => {
       
       // Save entry
       await saveEntry({
-        date: new Date().toISOString(),
+        date: today,
         type: 'morning',
         answers: entryAnswers
       });
@@ -295,7 +277,7 @@ const DailyQuestions: React.FC = () => {
       
       // Save entry
       await saveEntry({
-        date: new Date().toISOString(),
+        date: today,
         type: 'evening',
         answers: entryAnswers
       });

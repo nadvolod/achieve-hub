@@ -451,12 +451,48 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
     if (!user) return;
     
     try {
-      // First save the entry
+      // Get existing entries for this date and type
+      const { data: existingEntries, error: fetchError } = await supabase
+        .from('user_entries')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('date', entry.date.split('T')[0]) // Ensure we're using just the date part
+        .eq('type', entry.type);
+      
+      if (fetchError) throw fetchError;
+      
+      // If there's an existing entry, delete it first
+      if (existingEntries && existingEntries.length > 0) {
+        // Delete associated answers first
+        const { error: deleteAnswersError } = await supabase
+          .from('entry_answers')
+          .delete()
+          .eq('entry_id', existingEntries[0].id);
+        
+        if (deleteAnswersError) throw deleteAnswersError;
+        
+        // Then delete the entry
+        const { error: deleteEntryError } = await supabase
+          .from('user_entries')
+          .delete()
+          .eq('id', existingEntries[0].id);
+        
+        if (deleteEntryError) throw deleteEntryError;
+        
+        // Remove from local state
+        setEntries(prev => prev.filter(e => 
+          !(e.id === existingEntries[0].id && 
+            e.date.startsWith(entry.date.split('T')[0]) && 
+            e.type === entry.type)
+        ));
+      }
+      
+      // Create new entry
       const { data: entryData, error: entryError } = await supabase
         .from('user_entries')
         .insert({
           user_id: user.id,
-          date: entry.date,
+          date: entry.date.split('T')[0], // Ensure we're using just the date part
           type: entry.type
         })
         .select();
@@ -490,11 +526,6 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
         };
         
         setEntries(prev => [...prev, newEntry]);
-        
-        toast({
-          title: "Success",
-          description: "Your responses have been saved",
-        });
       }
     } catch (error) {
       console.error("Error saving entry:", error);
@@ -503,6 +534,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
         description: "Failed to save your responses",
         variant: "destructive",
       });
+      throw error; // Re-throw to allow caller to handle
     }
   };
 
