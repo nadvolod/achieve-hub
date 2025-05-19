@@ -467,41 +467,33 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       if (existingEntries && existingEntries.length > 0) {
         existingEntryId = existingEntries[0].id;
         
-        // Get the existing answers for this entry
-        const { data: existingAnswers, error: existingAnswersError } = await supabase
-          .from('entry_answers')
-          .select('*')
-          .eq('entry_id', existingEntryId);
-          
-        if (existingAnswersError) throw existingAnswersError;
-
-        // Create a map of existing answers by question ID
-        const existingAnswersMap: Record<string, any> = {};
-        if (existingAnswers) {
-          existingAnswers.forEach(answer => {
-            existingAnswersMap[answer.question_id] = answer;
-          });
-        }
-
-        // Update each answer one by one instead of deleting and re-creating
+        // Save each answer individually to avoid deleting existing ones
         for (const answer of entry.answers) {
-          if (existingAnswersMap[answer.questionId]) {
+          // First check if this question already has an answer
+          const { data: existingAnswer, error: checkError } = await supabase
+            .from('entry_answers')
+            .select('id')
+            .eq('entry_id', existingEntryId)
+            .eq('question_id', answer.questionId)
+            .single();
+            
+          if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
+            throw checkError;
+          }
+          
+          if (existingAnswer) {
             // Update existing answer
             const { error: updateError } = await supabase
               .from('entry_answers')
               .update({
                 answer: answer.answer,
-                // Keep the question_text as it was or update if changed
                 question_text: answer.questionText
               })
-              .eq('id', existingAnswersMap[answer.questionId].id);
+              .eq('id', existingAnswer.id);
               
             if (updateError) throw updateError;
-            
-            // Remove from map to track which ones we've processed
-            delete existingAnswersMap[answer.questionId];
           } else {
-            // Insert new answer
+            // Insert new answer if it doesn't exist
             const { error: insertError } = await supabase
               .from('entry_answers')
               .insert({
@@ -514,9 +506,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
             if (insertError) throw insertError;
           }
         }
-
-        // Now handle any answers for questions that might have been removed
-        // We'll keep them as they are to preserve the user's data
+        
       } else {
         // Create new entry since none exists
         const { data: entryData, error: entryError } = await supabase

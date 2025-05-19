@@ -37,14 +37,14 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
       clearTimeout(debounceTimerRef.current);
     }
     
-    // Reduced debounce time for more responsive saving
+    // Very short debounce time for immediate responsiveness
     debounceTimerRef.current = setTimeout(() => {
       onAnswerChange(newAnswer);
       // Reset editing state after a short delay
       setTimeout(() => {
         setIsEditing(false);
-      }, 500);
-    }, 200); // Reduced from 300ms to 200ms for more responsive feel
+      }, 300);
+    }, 100); // Ultra responsive - just enough debounce to batch keystrokes
   };
   
   useEffect(() => {

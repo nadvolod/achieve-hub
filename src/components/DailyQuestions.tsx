@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -120,10 +119,10 @@ const DailyQuestions: React.FC = () => {
       clearTimeout(autoSaveTimer);
     }
     
-    // Set a new timer for auto-save (1.5 seconds after typing stops)
+    // Set a new timer for auto-save (1 second after typing stops for more responsive saving)
     const timer = setTimeout(() => {
       autoSaveEntries();
-    }, 1500);
+    }, 1000);
     
     setAutoSaveTimer(timer);
   }, [autoSaveTimer]);
@@ -133,8 +132,8 @@ const DailyQuestions: React.FC = () => {
     try {
       const currentTime = new Date();
       
-      // Don't auto-save if last auto-save was less than 2 seconds ago
-      if (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 2000) {
+      // Don't auto-save if last auto-save was less than 1 second ago
+      if (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 1000) {
         setSaveStatus("idle");
         return;
       }
@@ -151,7 +150,7 @@ const DailyQuestions: React.FC = () => {
         answer: allAnswers[question.id] || ''
       }));
       
-      // Only save if we have answers to save
+      // Only save if we have at least one answer with content
       const hasAnswers = Object.values(allAnswers).some(answer => answer.trim() !== '');
       if (!hasAnswers) {
         setSaveStatus("idle");
