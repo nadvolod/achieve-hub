@@ -65,11 +65,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUpWithEmail = async (email: string, password: string) => {
     try {
+      // Get the current site URL dynamically
+      const siteUrl = window.location.origin;
+      console.log("Redirecting to:", siteUrl);
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: siteUrl,
         }
       });
       

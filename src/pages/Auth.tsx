@@ -5,7 +5,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -22,6 +21,7 @@ type AuthFormValues = z.infer<typeof authSchema>;
 const Auth = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const { signInWithEmail, signUpWithEmail, user } = useAuth();
   const navigate = useNavigate();
 
@@ -42,14 +42,16 @@ const Auth = () => {
 
   const onSubmit = async (data: AuthFormValues) => {
     setIsSubmitting(true);
+    setAuthError(null);
     try {
       if (isLogin) {
         await signInWithEmail(data.email, data.password);
       } else {
         await signUpWithEmail(data.email, data.password);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Authentication error:", error);
+      setAuthError(error.message || "An error occurred during authentication");
     } finally {
       setIsSubmitting(false);
     }
@@ -103,6 +105,11 @@ const Auth = () => {
                   </FormItem>
                 )}
               />
+              {authError && (
+                <div className="p-3 text-sm font-medium text-white bg-red-500 rounded-md">
+                  {authError}
+                </div>
+              )}
               <Button 
                 type="submit"
                 className="w-full"
@@ -124,7 +131,11 @@ const Auth = () => {
           <Button 
             variant="link" 
             className="w-full" 
-            onClick={() => setIsLogin(!isLogin)} 
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setAuthError(null);
+              form.reset();
+            }} 
             disabled={isSubmitting}
           >
             {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
