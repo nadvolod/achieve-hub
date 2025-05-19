@@ -22,6 +22,7 @@ const Auth = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authSuccess, setAuthSuccess] = useState<string | null>(null);
   const { signInWithEmail, signUpWithEmail, user } = useAuth();
   const navigate = useNavigate();
 
@@ -43,11 +44,20 @@ const Auth = () => {
   const onSubmit = async (data: AuthFormValues) => {
     setIsSubmitting(true);
     setAuthError(null);
+    setAuthSuccess(null);
+    
     try {
       if (isLogin) {
         await signInWithEmail(data.email, data.password);
       } else {
-        await signUpWithEmail(data.email, data.password);
+        // Handle signup with improved return values
+        const result = await signUpWithEmail(data.email, data.password);
+        if (!result.success) {
+          setAuthError(result.message);
+        } else {
+          setAuthSuccess(result.message);
+          form.reset();
+        }
       }
     } catch (error: any) {
       console.error("Authentication error:", error);
@@ -110,6 +120,11 @@ const Auth = () => {
                   {authError}
                 </div>
               )}
+              {authSuccess && (
+                <div className="p-3 text-sm font-medium text-white bg-green-500 rounded-md">
+                  {authSuccess}
+                </div>
+              )}
               <Button 
                 type="submit"
                 className="w-full"
@@ -134,6 +149,7 @@ const Auth = () => {
             onClick={() => {
               setIsLogin(!isLogin);
               setAuthError(null);
+              setAuthSuccess(null);
               form.reset();
             }} 
             disabled={isSubmitting}

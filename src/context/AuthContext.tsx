@@ -9,7 +9,7 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string) => Promise<{success: boolean; message: string}>;
   signOut: () => Promise<void>;
 };
 
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const siteUrl = window.location.origin;
       console.log("Redirecting to:", siteUrl);
       
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -79,16 +79,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
+      // Check if the user already exists but hasn't confirmed their email
+      if (data?.user && data.user.identities?.length === 0) {
+        toast({
+          title: "Account already exists",
+          description: "You've already signed up with this email. Please check your email for the confirmation link or try signing in.",
+          duration: 6000,
+        });
+        return { 
+          success: false, 
+          message: "You've already signed up with this email. Please check your email for the confirmation link or try signing in." 
+        };
+      }
+      
       toast({
         title: "Account created",
         description: "Check your email for a confirmation link.",
       });
+      
+      return { success: true, message: "Check your email for a confirmation link." };
     } catch (error: any) {
+      // Handle the specific error for already registered users
+      if (error.message?.includes("User already registered")) {
+        toast({
+          title: "Account already exists",
+          description: "You've already signed up with this email. Please check your email for the confirmation link or try signing in.",
+          duration: 6000,
+          variant: "destructive",
+        });
+        return { 
+          success: false, 
+          message: "You've already signed up with this email. Please check your email for the confirmation link or try signing in." 
+        };
+      }
+
       toast({
         title: "Error creating account",
         description: error.message,
         variant: "destructive",
       });
+      
       throw error;
     }
   };
