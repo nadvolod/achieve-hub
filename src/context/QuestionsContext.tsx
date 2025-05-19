@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +36,10 @@ type QuestionsContextType = {
   removeQuestion: (id: string) => Promise<void>;
   reorderQuestions: (questionIds: string[], type: 'morning' | 'evening') => Promise<void>;
   saveEntry: (entry: Omit<Entry, 'id'>) => Promise<void>;
+  todaysMorningQuestions: Question[];
+  todaysEveningQuestions: Question[];
+  getEntries: (date: string) => Entry[];
+  refreshTodaysQuestions: () => void;
 };
 
 const QuestionsContext = createContext<QuestionsContextType | undefined>(undefined);
@@ -69,6 +72,8 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [questions, setQuestions] = useState<Question[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [todaysMorningQuestions, setTodaysMorningQuestions] = useState<Question[]>([]);
+  const [todaysEveningQuestions, setTodaysEveningQuestions] = useState<Question[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -137,7 +142,7 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           return {
             id: entry.id,
             date: entry.date,
-            type: entry.type,
+            type: entry.type as 'morning' | 'evening',
             answers: entryAnswers.map(a => ({
               questionId: a.question_id,
               questionText: a.question_text,
@@ -160,6 +165,27 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
+  const updateTodaysQuestions = () => {
+    const morningQuestions = questions
+      .filter(q => q.type === 'morning' && q.isActive)
+      .sort((a, b) => a.position - b.position);
+    
+    const eveningQuestions = questions
+      .filter(q => q.type === 'evening' && q.isActive)
+      .sort((a, b) => a.position - b.position);
+    
+    setTodaysMorningQuestions(morningQuestions);
+    setTodaysEveningQuestions(eveningQuestions);
+  };
+
+  const refreshTodaysQuestions = () => {
+    updateTodaysQuestions();
+  };
+
+  const getEntries = (date: string): Entry[] => {
+    return entries.filter(entry => entry.date.startsWith(date));
+  };
+
   useEffect(() => {
     if (user) {
       fetchQuestions();
@@ -169,6 +195,10 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setEntries([]);
     }
   }, [user]);
+
+  useEffect(() => {
+    updateTodaysQuestions();
+  }, [questions]);
 
   const addQuestion = async (question: Omit<Question, 'id' | 'position'>) => {
     if (!user) return;
@@ -390,6 +420,10 @@ export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         removeQuestion,
         reorderQuestions,
         saveEntry,
+        todaysMorningQuestions,
+        todaysEveningQuestions,
+        getEntries,
+        refreshTodaysQuestions,
       }}
     >
       {children}
