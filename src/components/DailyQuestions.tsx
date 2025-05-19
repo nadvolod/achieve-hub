@@ -119,10 +119,10 @@ const DailyQuestions: React.FC = () => {
       clearTimeout(autoSaveTimer);
     }
     
-    // Set a new timer for auto-save (1 second after typing stops for more responsive saving)
+    // Set a new timer for auto-save (nearly immediate for better UX)
     const timer = setTimeout(() => {
       autoSaveEntries();
-    }, 1000);
+    }, 500);
     
     setAutoSaveTimer(timer);
   }, [autoSaveTimer]);
@@ -132,57 +132,61 @@ const DailyQuestions: React.FC = () => {
     try {
       const currentTime = new Date();
       
-      // Don't auto-save if last auto-save was less than 500ms ago
-      if (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 500) {
+      // Don't auto-save if last auto-save was less than 300ms ago
+      if (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 300) {
         setSaveStatus("idle");
         return;
       }
       
-      // Get the current active tab and related data
-      const isActiveMorning = activeTab === "morning";
+      // CRITICAL FIX: Always save both morning and evening answers
+      // regardless of which tab is active, as long as there's content
       
-      // IMPORTANT: Always include BOTH morning and evening answers, regardless of active tab
-      // This ensures we don't lose data when switching tabs
+      // Process morning answers - save them if there's any content
+      const hasMorningAnswers = Object.values(morningAnswers).some(answer => answer?.trim() !== '');
       
-      // Process morning answers
-      const morningEntryAnswers = todaysMorningQuestions.map(question => ({
-        questionId: question.id,
-        questionText: question.text,
-        answer: morningAnswers[question.id] || ''
-      }));
-      
-      // Process evening answers
-      const eveningEntryAnswers = todaysEveningQuestions.map(question => ({
-        questionId: question.id,
-        questionText: question.text,
-        answer: eveningAnswers[question.id] || ''
-      }));
-      
-      // Only save the currently active tab if it has content
-      const currentAnswers = isActiveMorning ? morningAnswers : eveningAnswers;
-      const hasAnswers = Object.values(currentAnswers).some(answer => answer.trim() !== '');
-      
-      if (hasAnswers) {
-        // Save the entry for the active tab
+      if (hasMorningAnswers) {
+        const morningEntryAnswers = todaysMorningQuestions.map(question => ({
+          questionId: question.id,
+          questionText: question.text,
+          answer: morningAnswers[question.id] || ''
+        }));
+        
+        // Save morning answers
         await saveEntry({
           date: today,
-          type: isActiveMorning ? 'morning' : 'evening',
-          answers: isActiveMorning ? morningEntryAnswers : eveningEntryAnswers
+          type: 'morning',
+          answers: morningEntryAnswers
         });
-        
-        // Update last auto-save timestamp
-        setLastAutoSave(currentTime);
-        
-        // Update save status to "saved"
-        setSaveStatus("saved");
-        
-        // Reset status to idle after 2 seconds
-        setTimeout(() => {
-          setSaveStatus("idle");
-        }, 2000);
-      } else {
-        setSaveStatus("idle");
       }
+      
+      // Process evening answers - save them if there's any content
+      const hasEveningAnswers = Object.values(eveningAnswers).some(answer => answer?.trim() !== '');
+      
+      if (hasEveningAnswers) {
+        const eveningEntryAnswers = todaysEveningQuestions.map(question => ({
+          questionId: question.id,
+          questionText: question.text,
+          answer: eveningAnswers[question.id] || ''
+        }));
+        
+        // Save evening answers
+        await saveEntry({
+          date: today,
+          type: 'evening',
+          answers: eveningEntryAnswers
+        });
+      }
+      
+      // Update last auto-save timestamp
+      setLastAutoSave(currentTime);
+      
+      // Update save status to "saved"
+      setSaveStatus("saved");
+      
+      // Reset status to idle after 2 seconds
+      setTimeout(() => {
+        setSaveStatus("idle");
+      }, 2000);
     } catch (error) {
       console.error("Error auto-saving:", error);
       setSaveStatus("idle");
@@ -192,7 +196,7 @@ const DailyQuestions: React.FC = () => {
         variant: "destructive"
       });
     }
-  }, [activeTab, morningAnswers, eveningAnswers, todaysMorningQuestions, todaysEveningQuestions, saveEntry, lastAutoSave, today, toast]);
+  }, [morningAnswers, eveningAnswers, todaysMorningQuestions, todaysEveningQuestions, saveEntry, lastAutoSave, today, toast]);
   
   // Cleanup auto-save timer on unmount
   useEffect(() => {
@@ -202,6 +206,12 @@ const DailyQuestions: React.FC = () => {
       }
     };
   }, [autoSaveTimer]);
+  
+  // Add an effect to handle tab changes and ensure auto-save happens
+  useEffect(() => {
+    // When tab changes, trigger an auto-save to ensure we don't lose data
+    autoSaveEntries();
+  }, [activeTab, autoSaveEntries]);
   
   const handleSaveMorning = async () => {
     // Validate mandatory questions are answered
@@ -338,7 +348,15 @@ const DailyQuestions: React.FC = () => {
         </Button>
       </div>
       
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs 
+        value={activeTab} 
+        onValueChange={(value) => {
+          // Save current tab answers before switching
+          autoSaveEntries();
+          setActiveTab(value);
+        }} 
+        className="w-full"
+      >
         <TabsList className="grid grid-cols-2 mb-4">
           <TabsTrigger value="morning" className="flex items-center gap-2">
             <Sun className="h-4 w-4" />

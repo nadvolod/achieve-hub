@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
@@ -452,12 +451,15 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
     if (!user) return;
     
     try {
+      // Format the date to ensure consistent format in the database
+      const formattedDate = entry.date.split('T')[0];
+      
       // Get existing entries for this date and type
       const { data: existingEntries, error: fetchError } = await supabase
         .from('user_entries')
         .select('id')
         .eq('user_id', user.id)
-        .eq('date', entry.date.split('T')[0]) // Ensure we're using just the date part
+        .eq('date', formattedDate)
         .eq('type', entry.type);
       
       if (fetchError) throw fetchError;
@@ -468,7 +470,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       if (existingEntries && existingEntries.length > 0) {
         existingEntryId = existingEntries[0].id;
         
-        // Get existing answers for this entry to merge with new ones
+        // Get existing answers for this entry to compare and update
         const { data: existingAnswers, error: answersError } = await supabase
           .from('entry_answers')
           .select('*')
@@ -476,24 +478,25 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           
         if (answersError) throw answersError;
         
-        // Create a map of existing answers by question ID
+        // Create a map of existing answers by question ID for efficient lookup
         const existingAnswersMap = new Map();
         if (existingAnswers) {
           existingAnswers.forEach(answer => {
             existingAnswersMap.set(answer.question_id, {
               id: answer.id,
-              answer: answer.answer
+              answer: answer.answer,
+              question_text: answer.question_text
             });
           });
         }
         
-        // Process each new answer
+        // Process each answer in the entry
         for (const answer of entry.answers) {
           const existingAnswer = existingAnswersMap.get(answer.questionId);
           
           if (existingAnswer) {
-            // Update existing answer if content changed
-            if (existingAnswer.answer !== answer.answer) {
+            // Only update if content changed to minimize database operations
+            if (existingAnswer.answer !== answer.answer || existingAnswer.question_text !== answer.questionText) {
               const { error: updateError } = await supabase
                 .from('entry_answers')
                 .update({
@@ -505,7 +508,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
               if (updateError) throw updateError;
             }
           } else {
-            // Insert new answer if it doesn't exist
+            // Insert new answer if it doesn't exist yet
             const { error: insertError } = await supabase
               .from('entry_answers')
               .insert({
@@ -519,13 +522,16 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           }
         }
         
+        // Note: We deliberately don't delete answers that weren't included in this update
+        // This preserves answers across tab changes
+        
       } else {
         // Create new entry since none exists
         const { data: entryData, error: entryError } = await supabase
           .from('user_entries')
           .insert({
             user_id: user.id,
-            date: entry.date.split('T')[0], // Ensure we're using just the date part
+            date: formattedDate,
             type: entry.type
           })
           .select();
@@ -537,12 +543,14 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           existingEntryId = entryData[0].id;
           
           // Prepare answers for insertion
-          const answersToInsert = entry.answers.map(answer => ({
-            entry_id: existingEntryId,
-            question_id: answer.questionId,
-            question_text: answer.questionText,
-            answer: answer.answer
-          }));
+          const answersToInsert = entry.answers
+            .filter(answer => answer.answer.trim() !== '') // Only insert non-empty answers
+            .map(answer => ({
+              entry_id: existingEntryId,
+              question_id: answer.questionId,
+              question_text: answer.questionText,
+              answer: answer.answer
+            }));
           
           // Only insert if we have answers
           if (answersToInsert.length > 0) {
@@ -568,7 +576,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
         // Create the updated entry
         const updatedEntry: Entry = {
           id: existingEntryId,
-          date: entry.date,
+          date: formattedDate,
           type: entry.type,
           answers: updatedAnswers ? updatedAnswers.map(a => ({
             questionId: a.question_id,
@@ -577,12 +585,13 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           })) : []
         };
         
-        // Update local state - IMPORTANT: Only update the specific entry that was changed
-        // Don't remove other entries of different types for the same date
+        // Update local state with careful merging
         setEntries(prev => {
+          // Remove the specific entry being updated if it exists
           const filtered = prev.filter(e => 
-            !(e.date.startsWith(entry.date.split('T')[0]) && e.type === entry.type)
+            !(e.date === formattedDate && e.type === entry.type)
           );
+          
           // Add the updated entry
           return [...filtered, updatedEntry];
         });

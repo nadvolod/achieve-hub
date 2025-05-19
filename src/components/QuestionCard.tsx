@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,14 +37,14 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
       clearTimeout(debounceTimerRef.current);
     }
     
-    // Super short debounce time for nearly immediate responsiveness
+    // Ultra short debounce time for immediate responsiveness
     debounceTimerRef.current = setTimeout(() => {
       onAnswerChange(newAnswer);
       // Reset editing state after a short delay
       setTimeout(() => {
         setIsEditing(false);
-      }, 200);
-    }, 50); // Ultra responsive - just enough debounce to batch keystrokes
+      }, 100);
+    }, 10); // Nearly instant response time
   };
   
   useEffect(() => {
@@ -75,6 +76,13 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
             isEditing ? 'border-teal-300' : ''
           }`}
           disabled={readOnly}
+          // Trigger onAnswerChange on blur to ensure the value is saved when tabbing away
+          onBlur={() => {
+            // Only trigger if there's an actual value to save
+            if (localAnswer.trim() !== '') {
+              onAnswerChange(localAnswer);
+            }
+          }}
         />
       </CardContent>
     </Card>
