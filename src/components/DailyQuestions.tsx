@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -119,10 +120,10 @@ const DailyQuestions: React.FC = () => {
       clearTimeout(autoSaveTimer);
     }
     
-    // Set a new timer for auto-save (3 seconds after typing stops)
+    // Set a new timer for auto-save (1.5 seconds after typing stops)
     const timer = setTimeout(() => {
       autoSaveEntries();
-    }, 3000);
+    }, 1500);
     
     setAutoSaveTimer(timer);
   }, [autoSaveTimer]);
@@ -132,34 +133,35 @@ const DailyQuestions: React.FC = () => {
     try {
       const currentTime = new Date();
       
-      // Don't auto-save if last auto-save was less than 5 seconds ago
-      if (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 5000) {
+      // Don't auto-save if last auto-save was less than 2 seconds ago
+      if (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 2000) {
         setSaveStatus("idle");
         return;
       }
       
-      const activeAnswers = activeTab === "morning" ? morningAnswers : eveningAnswers;
-      const activeQuestions = activeTab === "morning" ? todaysMorningQuestions : todaysEveningQuestions;
+      // Get the current active tab and related data
+      const isActiveMorning = activeTab === "morning";
+      const activeQuestions = isActiveMorning ? todaysMorningQuestions : todaysEveningQuestions;
+      const allAnswers = isActiveMorning ? morningAnswers : eveningAnswers;
       
-      // Check if there are any non-empty answers to save
-      const hasAnswers = Object.values(activeAnswers).some(answer => answer.trim() !== '');
+      // Always include ALL answers in the save, not just changed ones
+      const entryAnswers = activeQuestions.map(question => ({
+        questionId: question.id,
+        questionText: question.text,
+        answer: allAnswers[question.id] || ''
+      }));
       
+      // Only save if we have answers to save
+      const hasAnswers = Object.values(allAnswers).some(answer => answer.trim() !== '');
       if (!hasAnswers) {
         setSaveStatus("idle");
         return;
       }
       
-      // Prepare answers for saving - include ALL answers, not just the one that changed
-      const entryAnswers = activeQuestions.map(question => ({
-        questionId: question.id,
-        questionText: question.text,
-        answer: activeAnswers[question.id] || ''
-      }));
-      
-      // Save entry - this will now properly handle merging with existing data
+      // Save entry with all answers
       await saveEntry({
         date: today,
-        type: activeTab as 'morning' | 'evening',
+        type: isActiveMorning ? 'morning' : 'evening',
         answers: entryAnswers
       });
       
@@ -176,8 +178,13 @@ const DailyQuestions: React.FC = () => {
     } catch (error) {
       console.error("Error auto-saving:", error);
       setSaveStatus("idle");
+      toast({
+        title: "Auto-save failed",
+        description: "There was a problem saving your answers. Please try again.",
+        variant: "destructive"
+      });
     }
-  }, [activeTab, morningAnswers, eveningAnswers, todaysMorningQuestions, todaysEveningQuestions, saveEntry, lastAutoSave, today]);
+  }, [activeTab, morningAnswers, eveningAnswers, todaysMorningQuestions, todaysEveningQuestions, saveEntry, lastAutoSave, today, toast]);
   
   // Cleanup auto-save timer on unmount
   useEffect(() => {

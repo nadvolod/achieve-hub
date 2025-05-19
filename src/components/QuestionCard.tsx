@@ -22,6 +22,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Update local state when prop changes
   useEffect(() => {
     setLocalAnswer(answer);
   }, [answer]);
@@ -36,13 +37,14 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
       clearTimeout(debounceTimerRef.current);
     }
     
+    // Reduced debounce time for more responsive saving
     debounceTimerRef.current = setTimeout(() => {
       onAnswerChange(newAnswer);
       // Reset editing state after a short delay
       setTimeout(() => {
         setIsEditing(false);
-      }, 1000);
-    }, 300);
+      }, 500);
+    }, 200); // Reduced from 300ms to 200ms for more responsive feel
   };
   
   useEffect(() => {
