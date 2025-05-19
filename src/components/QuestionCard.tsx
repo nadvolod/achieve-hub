@@ -19,6 +19,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   readOnly = false
 }) => {
   const [localAnswer, setLocalAnswer] = useState(answer);
+  const [isEditing, setIsEditing] = useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   useEffect(() => {
@@ -28,6 +29,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newAnswer = e.target.value;
     setLocalAnswer(newAnswer);
+    setIsEditing(true);
     
     // Debounce the callback to avoid excessive updates
     if (debounceTimerRef.current) {
@@ -36,6 +38,10 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
     
     debounceTimerRef.current = setTimeout(() => {
       onAnswerChange(newAnswer);
+      // Reset editing state after a short delay
+      setTimeout(() => {
+        setIsEditing(false);
+      }, 1000);
     }, 300);
   };
   
@@ -64,7 +70,9 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
           value={localAnswer}
           onChange={handleChange}
           placeholder="Your answer..."
-          className="min-h-[100px] focus:border-teal-400 focus:ring-teal-400"
+          className={`min-h-[100px] focus:border-teal-400 focus:ring-teal-400 ${
+            isEditing ? 'border-teal-300' : ''
+          }`}
           disabled={readOnly}
         />
       </CardContent>

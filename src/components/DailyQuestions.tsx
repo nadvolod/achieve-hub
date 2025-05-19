@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -27,6 +26,7 @@ const DailyQuestions: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("morning");
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   
   const today = getTodayDateString();
   const formattedDate = formatDate(today);
@@ -83,6 +83,8 @@ const DailyQuestions: React.FC = () => {
     
     // Trigger auto-save timer
     scheduleAutoSave();
+    // Set status to show we're going to save
+    setSaveStatus("saving");
   };
   
   const handleEveningAnswerChange = (questionId: string, answer: string) => {
@@ -93,6 +95,8 @@ const DailyQuestions: React.FC = () => {
     
     // Trigger auto-save timer
     scheduleAutoSave();
+    // Set status to show we're going to save
+    setSaveStatus("saving");
   };
   
   // Auto-save functionality
@@ -121,6 +125,7 @@ const DailyQuestions: React.FC = () => {
     
     // Don't auto-save if no answers or if last auto-save was less than 10 seconds ago
     if (!hasAnswers || (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 10000)) {
+      setSaveStatus("idle");
       return;
     }
     
@@ -141,16 +146,18 @@ const DailyQuestions: React.FC = () => {
       // Update last auto-save timestamp
       setLastAutoSave(currentTime);
       
-      // Show subtle toast notification
-      toast({
-        title: "Progress saved",
-        description: "Your answers have been auto-saved.",
-        duration: 2000
-      });
+      // Update save status to "saved"
+      setSaveStatus("saved");
+      
+      // Reset status to idle after 3 seconds
+      setTimeout(() => {
+        setSaveStatus("idle");
+      }, 3000);
     } catch (error) {
       console.error("Error auto-saving:", error);
+      setSaveStatus("idle");
     }
-  }, [activeTab, morningAnswers, eveningAnswers, todaysMorningQuestions, todaysEveningQuestions, saveEntry, lastAutoSave, toast]);
+  }, [activeTab, morningAnswers, eveningAnswers, todaysMorningQuestions, todaysEveningQuestions, saveEntry, lastAutoSave]);
   
   // Cleanup auto-save timer on unmount
   useEffect(() => {
@@ -267,8 +274,21 @@ const DailyQuestions: React.FC = () => {
     });
   };
   
+  // Render save status indicator
+  const renderSaveStatus = () => {
+    if (saveStatus === "idle") {
+      return null;
+    }
+    
+    return (
+      <div className="text-xs text-gray-500 italic absolute bottom-4 right-4">
+        {saveStatus === "saving" ? "Saving..." : "Saved"}
+      </div>
+    );
+  };
+  
   return (
-    <div className="mt-4">
+    <div className="mt-4 relative">
       <StreakDisplay />
       
       <div className="flex justify-between items-center mb-6">
@@ -337,6 +357,8 @@ const DailyQuestions: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
+      
+      {renderSaveStatus()}
     </div>
   );
 };
