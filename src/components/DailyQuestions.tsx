@@ -71,7 +71,7 @@ const DailyQuestions: React.FC = () => {
     
     // Set default active tab based on time of day
     const currentHour = new Date().getHours();
-    setActiveTab(currentHour < 12 ? "morning" : "evening");
+    setActiveTab(currentHour >= 17 ? "evening" : "morning"); // Use evening tab after 5PM (17:00)
     
   }, [todaysMorningQuestions, todaysEveningQuestions, getEntries, today]);
   
