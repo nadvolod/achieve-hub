@@ -1,12 +1,12 @@
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Trash, Sun, Moon } from "lucide-react";
+import { Plus, Trash, Sun, Moon, GripVertical } from "lucide-react";
 import Header from "@/components/Header";
 import { useQuestions, Question } from "../context/QuestionsContext";
 import {
@@ -18,18 +18,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import EmailReminderForm from "@/components/EmailReminderForm";
 
 const Settings = () => {
-  const { questions, updateQuestion, addQuestion, removeQuestion } = useQuestions();
+  const { questions, updateQuestion, addQuestion, removeQuestion, reorderQuestions } = useQuestions();
   const { toast } = useToast();
   const [newQuestion, setNewQuestion] = useState("");
   const [newQuestionMandatory, setNewQuestionMandatory] = useState(false);
   const [newQuestionType, setNewQuestionType] = useState<"morning" | "evening">("morning");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("morning");
+  const [draggedItem, setDraggedItem] = useState<Question | null>(null);
   
   const handleQuestionToggle = (id: string, isActive: boolean) => {
     updateQuestion(id, { isActive });
@@ -75,12 +75,50 @@ const Settings = () => {
     });
   };
 
-  // Filter questions by type
-  const morningQuestions = questions.filter(q => q.type === 'morning');
-  const eveningQuestions = questions.filter(q => q.type === 'evening');
+  // Filter questions by type and sort by position
+  const morningQuestions = questions
+    .filter(q => q.type === 'morning')
+    .sort((a, b) => a.position - b.position);
+    
+  const eveningQuestions = questions
+    .filter(q => q.type === 'evening')
+    .sort((a, b) => a.position - b.position);
   
   const morningMandatoryCount = morningQuestions.filter(q => q.isMandatory && q.isActive).length;
   const eveningMandatoryCount = eveningQuestions.filter(q => q.isMandatory && q.isActive).length;
+  
+  // Drag and drop handlers
+  const handleDragStart = (question: Question) => {
+    setDraggedItem(question);
+  };
+  
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+  
+  const handleDrop = (targetQuestion: Question) => {
+    if (!draggedItem || draggedItem.id === targetQuestion.id) return;
+    
+    // Make sure we're only reordering within the same type
+    if (draggedItem.type !== targetQuestion.type) return;
+    
+    const type = draggedItem.type;
+    const filteredQuestions = type === 'morning' ? morningQuestions : eveningQuestions;
+    
+    // Create a new array with the updated order
+    const reorderedIds = filteredQuestions.map(q => q.id);
+    const draggedIndex = reorderedIds.indexOf(draggedItem.id);
+    const targetIndex = reorderedIds.indexOf(targetQuestion.id);
+    
+    // Remove the dragged item
+    reorderedIds.splice(draggedIndex, 1);
+    // Insert it at the new position
+    reorderedIds.splice(targetIndex, 0, draggedItem.id);
+    
+    // Update the database with the new order
+    reorderQuestions(reorderedIds, type);
+    setDraggedItem(null);
+  };
   
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -171,13 +209,28 @@ const Settings = () => {
               <div className="text-sm text-gray-500 mb-4">
                 You have {morningMandatoryCount} mandatory morning questions that will appear daily.
                 The remaining morning questions will rotate, with 2 showing each day.
+                <p className="mt-1 text-xs text-teal-600">Drag and drop questions to reorder them.</p>
               </div>
               
               <div className="space-y-4">
                 {morningQuestions.map((question) => (
-                  <div key={question.id} className="border-b pb-3 last:border-0 last:pb-0">
+                  <div 
+                    key={question.id} 
+                    className={`border-b pb-3 last:border-0 last:pb-0 ${
+                      draggedItem?.id === question.id ? 'opacity-50' : ''
+                    }`}
+                    draggable
+                    onDragStart={() => handleDragStart(question)}
+                    onDragOver={handleDragOver}
+                    onDrop={() => handleDrop(question)}
+                  >
                     <div className="flex justify-between items-start">
-                      <p className="text-gray-800 pr-4">{question.text}</p>
+                      <div className="flex items-start gap-2">
+                        <div className="mt-1 cursor-move">
+                          <GripVertical className="h-4 w-4 text-gray-400" />
+                        </div>
+                        <p className="text-gray-800 pr-4">{question.text}</p>
+                      </div>
                       
                       <Button
                         variant="ghost"
@@ -189,7 +242,7 @@ const Settings = () => {
                       </Button>
                     </div>
                     
-                    <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center justify-between mt-2 ml-6">
                       <div className="flex items-center space-x-2">
                         <Checkbox 
                           id={`mandatory-${question.id}`}
@@ -295,13 +348,28 @@ const Settings = () => {
               <div className="text-sm text-gray-500 mb-4">
                 You have {eveningMandatoryCount} mandatory evening questions.
                 All active evening questions will be shown every day.
+                <p className="mt-1 text-xs text-teal-600">Drag and drop questions to reorder them.</p>
               </div>
               
               <div className="space-y-4">
                 {eveningQuestions.map((question) => (
-                  <div key={question.id} className="border-b pb-3 last:border-0 last:pb-0">
+                  <div 
+                    key={question.id} 
+                    className={`border-b pb-3 last:border-0 last:pb-0 ${
+                      draggedItem?.id === question.id ? 'opacity-50' : ''
+                    }`}
+                    draggable
+                    onDragStart={() => handleDragStart(question)}
+                    onDragOver={handleDragOver}
+                    onDrop={() => handleDrop(question)}
+                  >
                     <div className="flex justify-between items-start">
-                      <p className="text-gray-800 pr-4">{question.text}</p>
+                      <div className="flex items-start gap-2">
+                        <div className="mt-1 cursor-move">
+                          <GripVertical className="h-4 w-4 text-gray-400" />
+                        </div>
+                        <p className="text-gray-800 pr-4">{question.text}</p>
+                      </div>
                       
                       <Button
                         variant="ghost"
@@ -313,7 +381,7 @@ const Settings = () => {
                       </Button>
                     </div>
                     
-                    <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center justify-between mt-2 ml-6">
                       <div className="flex items-center space-x-2">
                         <Checkbox 
                           id={`mandatory-${question.id}`}

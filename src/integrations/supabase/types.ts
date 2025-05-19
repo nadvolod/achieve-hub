@@ -9,7 +9,162 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      email_reminders: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          is_evening: boolean
+          is_morning: boolean
+          reminder_time: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          is_evening: boolean
+          is_morning: boolean
+          reminder_time: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          is_evening?: boolean
+          is_morning?: boolean
+          reminder_time?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      entry_answers: {
+        Row: {
+          answer: string
+          created_at: string
+          entry_id: string
+          id: string
+          question_id: string
+          question_text: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          entry_id: string
+          id?: string
+          question_id: string
+          question_text: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          entry_id?: string
+          id?: string
+          question_id?: string
+          question_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entry_answers_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "user_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entry_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "user_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_entries: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_questions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_mandatory: boolean
+          position: number
+          text: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          position: number
+          text: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_mandatory?: boolean
+          position?: number
+          text?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

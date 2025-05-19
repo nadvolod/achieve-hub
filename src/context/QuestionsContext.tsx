@@ -1,222 +1,397 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from './AuthContext';
+import { useToast } from '@/components/ui/use-toast';
 
-export interface Question {
+export type Question = {
   id: string;
   text: string;
   isMandatory: boolean;
   isActive: boolean;
-  type: 'morning' | 'evening'; // Added question type
-}
+  position: number;
+  type: 'morning' | 'evening';
+};
 
-export interface Entry {
+export type Answer = {
+  questionId: string;
+  questionText: string;
+  answer: string;
+};
+
+export type Entry = {
   id: string;
-  date: string; // ISO string
-  type: 'morning' | 'evening'; // Added entry type
-  answers: {
-    questionId: string;
-    questionText: string;
-    answer: string;
-  }[];
-}
+  date: string;
+  type: 'morning' | 'evening';
+  answers: Answer[];
+};
 
-interface QuestionsContextType {
+type QuestionsContextType = {
   questions: Question[];
   entries: Entry[];
-  todaysMorningQuestions: Question[];
-  todaysEveningQuestions: Question[];
-  updateQuestion: (id: string, updates: Partial<Question>) => void;
-  addQuestion: (question: Omit<Question, 'id'>) => void;
-  removeQuestion: (id: string) => void;
-  saveEntry: (entry: Omit<Entry, 'id'>) => void;
-  getEntries: (date: string) => Entry[];
-  refreshTodaysQuestions: () => void;
-}
-
-// Updated default questions with types
-const defaultMorningQuestions: Question[] = [
-  { id: '1', text: 'How can I give even more fully consistently?', isMandatory: true, isActive: true, type: 'morning' },
-  { id: '2', text: 'Who do I need to be to be able to go at 95% 6 days of the week?', isMandatory: true, isActive: true, type: 'morning' },
-  { id: '3', text: 'Am I happy?', isMandatory: true, isActive: true, type: 'morning' },
-  { id: '4', text: 'Am I having fun?', isMandatory: false, isActive: true, type: 'morning' },
-  { id: '5', text: 'How can I live with even more courage and determination?', isMandatory: false, isActive: true, type: 'morning' },
-  { id: '6', text: 'Did I live with level 10 energy? Who must I become to live with level 10 energy 6/7 days?', isMandatory: false, isActive: true, type: 'morning' },
-  { id: '7', text: 'Was I my best yesterday (1-10)?', isMandatory: false, isActive: true, type: 'morning' },
-  { id: '8', text: 'How can I love even more (3 human needs)?', isMandatory: false, isActive: true, type: 'morning' },
-  { id: '9', text: 'How do I serve even more?', isMandatory: false, isActive: true, type: 'morning' },
-  { id: '10', text: 'How can I grow even more?', isMandatory: false, isActive: true, type: 'morning' },
-];
-
-// Add evening questions
-const defaultEveningQuestions: Question[] = [
-  { id: '11', text: 'What did I accomplish today?', isMandatory: true, isActive: true, type: 'evening' },
-  { id: '12', text: 'Did I complete all my planned activities? Why?', isMandatory: true, isActive: true, type: 'evening' },
-  { id: '13', text: 'What should I focus on tomorrow?', isMandatory: true, isActive: true, type: 'evening' },
-  { id: '14', text: 'What should I do tomorrow to make it a better day?', isMandatory: false, isActive: true, type: 'evening' },
-  { id: '15', text: 'How did I do with my emotions? What was the moment that made me unconscious?', isMandatory: false, isActive: true, type: 'evening' },
-  { id: '16', text: 'What fun did I have today?', isMandatory: false, isActive: true, type: 'evening' },
-  { id: '17', text: 'Who should I spend more time with and why?', isMandatory: false, isActive: true, type: 'evening' },
-  { id: '18', text: 'What would I do differently if I could live my day over?', isMandatory: false, isActive: true, type: 'evening' },
-];
+  isLoading: boolean;
+  fetchQuestions: () => Promise<void>;
+  addQuestion: (question: Omit<Question, 'id' | 'position'>) => Promise<void>;
+  updateQuestion: (id: string, updates: Partial<Omit<Question, 'id'>>) => Promise<void>;
+  removeQuestion: (id: string) => Promise<void>;
+  reorderQuestions: (questionIds: string[], type: 'morning' | 'evening') => Promise<void>;
+  saveEntry: (entry: Omit<Entry, 'id'>) => Promise<void>;
+};
 
 const QuestionsContext = createContext<QuestionsContextType | undefined>(undefined);
+
+const defaultMorningQuestions: Omit<Question, 'id' | 'position'>[] = [
+  { text: "How can I give even more fully consistently?", isMandatory: true, isActive: true, type: 'morning' },
+  { text: "Who do I need to be to be able to go at 95% 6 days of the week?", isMandatory: true, isActive: true, type: 'morning' },
+  { text: "Am I happy?", isMandatory: true, isActive: true, type: 'morning' },
+  { text: "Am I having fun?", isMandatory: false, isActive: true, type: 'morning' },
+  { text: "How can I live with even more courage and determination?", isMandatory: false, isActive: true, type: 'morning' },
+  { text: "Did I live with level 10 energy? Who must I become to live with level 10 energy 6/7 days?", isMandatory: false, isActive: true, type: 'morning' },
+  { text: "Was I my best yesterday (1-10)?", isMandatory: false, isActive: true, type: 'morning' },
+  { text: "How can I love even more (3 human needs)?", isMandatory: false, isActive: true, type: 'morning' },
+  { text: "How do I serve even more?", isMandatory: false, isActive: true, type: 'morning' },
+  { text: "How can I grow even more?", isMandatory: false, isActive: true, type: 'morning' },
+];
+
+const defaultEveningQuestions: Omit<Question, 'id' | 'position'>[] = [
+  { text: "What did I accomplish today?", isMandatory: true, isActive: true, type: 'evening' },
+  { text: "Did I complete all my planned activities? Why?", isMandatory: true, isActive: true, type: 'evening' },
+  { text: "What should I focus on tomorrow?", isMandatory: true, isActive: true, type: 'evening' },
+  { text: "What should I do tomorrow to make it a better day?", isMandatory: false, isActive: true, type: 'evening' },
+  { text: "How did I do with my emotions? What was the moment that made me unconscious?", isMandatory: false, isActive: true, type: 'evening' },
+  { text: "What fun did I have today?", isMandatory: false, isActive: true, type: 'evening' },
+  { text: "Who should I spend more time with and why?", isMandatory: false, isActive: true, type: 'evening' },
+  { text: "What would I do differently if I could live my day over?", isMandatory: false, isActive: true, type: 'evening' },
+];
 
 export const QuestionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [todaysMorningQuestions, setTodaysMorningQuestions] = useState<Question[]>([]);
-  const [todaysEveningQuestions, setTodaysEveningQuestions] = useState<Question[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  // Initialize from localStorage on component mount
-  useEffect(() => {
-    const storedQuestions = localStorage.getItem('reflectionQuestions');
-    const storedEntries = localStorage.getItem('reflectionEntries');
+  const fetchQuestions = async () => {
+    if (!user) return;
     
-    if (storedQuestions) {
-      const loadedQuestions = JSON.parse(storedQuestions);
-      // Add type property to any questions that don't have it
-      const updatedQuestions = loadedQuestions.map((q: any) => ({
-        ...q,
-        type: q.type || (parseInt(q.id) > 10 ? 'evening' : 'morning')
-      }));
-      setQuestions(updatedQuestions);
-    } else {
-      // Combine morning and evening questions
-      const allDefaultQuestions = [...defaultMorningQuestions, ...defaultEveningQuestions];
-      setQuestions(allDefaultQuestions);
-      localStorage.setItem('reflectionQuestions', JSON.stringify(allDefaultQuestions));
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('user_questions')
+        .select('*')
+        .order('position', { ascending: true });
+        
+      if (error) throw error;
+      
+      if (data) {
+        const formattedQuestions: Question[] = data.map(q => ({
+          id: q.id,
+          text: q.text,
+          isMandatory: q.is_mandatory,
+          isActive: q.is_active,
+          position: q.position,
+          type: q.type as 'morning' | 'evening'
+        }));
+        
+        setQuestions(formattedQuestions);
+      }
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+      toast({
+        title: "Failed to load questions",
+        description: "There was an error loading your questions. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
+  };
+  
+  const fetchEntries = async () => {
+    if (!user) return;
     
-    if (storedEntries) {
-      // Add type to any entries that don't have it
-      const loadedEntries = JSON.parse(storedEntries);
-      const updatedEntries = loadedEntries.map((entry: any) => ({
-        ...entry,
-        type: entry.type || 'morning'
-      }));
-      setEntries(updatedEntries);
-      localStorage.setItem('reflectionEntries', JSON.stringify(updatedEntries));
-    }
-  }, []);
-
-  // Save to localStorage whenever questions or entries change
-  useEffect(() => {
-    if (questions.length > 0) {
-      localStorage.setItem('reflectionQuestions', JSON.stringify(questions));
-    }
-  }, [questions]);
-
-  useEffect(() => {
-    if (entries.length > 0) {
-      localStorage.setItem('reflectionEntries', JSON.stringify(entries));
-    }
-  }, [entries]);
-
-  // Generate today's questions for both morning and evening
-  const refreshTodaysQuestions = () => {
-    const today = new Date().toISOString().split('T')[0];
-    const morningEntries = entries.filter(e => e.date.startsWith(today) && e.type === 'morning');
-    const eveningEntries = entries.filter(e => e.date.startsWith(today) && e.type === 'evening');
-    
-    // Morning questions
-    if (morningEntries.length > 0) {
-      const lastMorningEntry = morningEntries[morningEntries.length - 1];
-      const entryQuestionIds = lastMorningEntry.answers.map(a => a.questionId);
-      const todaysQ = questions.filter(q => entryQuestionIds.includes(q.id));
-      setTodaysMorningQuestions(todaysQ);
-    } else {
-      generateTodaysMorningQuestions(today);
-    }
-
-    // Evening questions
-    if (eveningEntries.length > 0) {
-      const lastEveningEntry = eveningEntries[eveningEntries.length - 1];
-      const entryQuestionIds = lastEveningEntry.answers.map(a => a.questionId);
-      const todaysQ = questions.filter(q => entryQuestionIds.includes(q.id));
-      setTodaysEveningQuestions(todaysQ);
-    } else {
-      generateTodaysEveningQuestions(today);
+    try {
+      setIsLoading(true);
+      // First get all entries
+      const { data: entriesData, error: entriesError } = await supabase
+        .from('user_entries')
+        .select('*')
+        .order('date', { ascending: false });
+        
+      if (entriesError) throw entriesError;
+      
+      if (entriesData) {
+        // Then get all answers for those entries
+        const { data: answersData, error: answersError } = await supabase
+          .from('entry_answers')
+          .select('*')
+          .in('entry_id', entriesData.map(e => e.id));
+          
+        if (answersError) throw answersError;
+        
+        // Format and combine data
+        const formattedEntries: Entry[] = entriesData.map(entry => {
+          const entryAnswers = answersData?.filter(a => a.entry_id === entry.id) || [];
+          
+          return {
+            id: entry.id,
+            date: entry.date,
+            type: entry.type,
+            answers: entryAnswers.map(a => ({
+              questionId: a.question_id,
+              questionText: a.question_text,
+              answer: a.answer
+            }))
+          };
+        });
+        
+        setEntries(formattedEntries);
+      }
+    } catch (error) {
+      console.error('Error fetching entries:', error);
+      toast({
+        title: "Failed to load entries",
+        description: "There was an error loading your journal entries. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const generateTodaysMorningQuestions = (today: string) => {
-    // Get mandatory questions for morning
-    const mandatoryQuestions = questions.filter(q => q.isMandatory && q.isActive && q.type === 'morning');
+  useEffect(() => {
+    if (user) {
+      fetchQuestions();
+      fetchEntries();
+    } else {
+      setQuestions([]);
+      setEntries([]);
+    }
+  }, [user]);
+
+  const addQuestion = async (question: Omit<Question, 'id' | 'position'>) => {
+    if (!user) return;
     
-    // Get rotating questions for morning
-    const nonMandatoryQuestions = questions.filter(q => !q.isMandatory && q.isActive && q.type === 'morning');
+    try {
+      // Find max position for the question type
+      const maxPosition = questions
+        .filter(q => q.type === question.type)
+        .reduce((max, q) => (q.position > max ? q.position : max), 0);
+      
+      const { data, error } = await supabase
+        .from('user_questions')
+        .insert([{
+          user_id: user.id,
+          text: question.text,
+          is_mandatory: question.isMandatory,
+          is_active: question.isActive,
+          position: maxPosition + 1,
+          type: question.type
+        }])
+        .select();
+        
+      if (error) throw error;
+      
+      if (data && data[0]) {
+        const newQuestion: Question = {
+          id: data[0].id,
+          text: data[0].text,
+          isMandatory: data[0].is_mandatory,
+          isActive: data[0].is_active,
+          position: data[0].position,
+          type: data[0].type
+        };
+        
+        setQuestions(prev => [...prev, newQuestion]);
+      }
+    } catch (error) {
+      console.error('Error adding question:', error);
+      toast({
+        title: "Failed to add question",
+        description: "There was an error adding your question. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const updateQuestion = async (id: string, updates: Partial<Omit<Question, 'id'>>) => {
+    if (!user) return;
     
-    // Select 2 rotating questions (or fewer if not enough available)
-    const selectedRotatingCount = Math.min(nonMandatoryQuestions.length, 2);
+    try {
+      const updateData: any = {};
+      if ('text' in updates) updateData.text = updates.text;
+      if ('isMandatory' in updates) updateData.is_mandatory = updates.isMandatory;
+      if ('isActive' in updates) updateData.is_active = updates.isActive;
+      if ('position' in updates) updateData.position = updates.position;
+      if ('type' in updates) updateData.type = updates.type;
+      
+      const { error } = await supabase
+        .from('user_questions')
+        .update(updateData)
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      setQuestions(prev => prev.map(q => 
+        q.id === id ? { ...q, ...updates } : q
+      ));
+    } catch (error) {
+      console.error('Error updating question:', error);
+      toast({
+        title: "Failed to update question",
+        description: "There was an error updating your question. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const removeQuestion = async (id: string) => {
+    if (!user) return;
     
-    // Create a deterministic but "random" selection based on the date
-    const dateHash = parseInt(today.replace(/-/g, ''));
+    try {
+      const { error } = await supabase
+        .from('user_questions')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      setQuestions(prev => prev.filter(q => q.id !== id));
+    } catch (error) {
+      console.error('Error removing question:', error);
+      toast({
+        title: "Failed to remove question",
+        description: "There was an error removing your question. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const reorderQuestions = async (questionIds: string[], type: 'morning' | 'evening') => {
+    if (!user || questionIds.length === 0) return;
     
-    let rotatingQuestions: Question[] = [];
-    
-    if (nonMandatoryQuestions.length > 0) {
-      // Create a deterministic shuffle based on today's date
-      const shuffledQuestions = [...nonMandatoryQuestions].sort((a, b) => {
-        return ((parseInt(a.id) * dateHash) % 17) - ((parseInt(b.id) * dateHash) % 17);
+    try {
+      // Update positions in the local state
+      const updatedQuestions = [...questions];
+      
+      // We'll only reorder questions of the specified type
+      const typeQuestions = updatedQuestions.filter(q => q.type === type);
+      const otherQuestions = updatedQuestions.filter(q => q.type !== type);
+      
+      // Create a mapping of id to new position
+      const updates: { id: string, position: number }[] = [];
+      
+      questionIds.forEach((id, index) => {
+        const question = typeQuestions.find(q => q.id === id);
+        if (question) {
+          question.position = index + 1;
+          updates.push({ id, position: index + 1 });
+        }
       });
       
-      rotatingQuestions = shuffledQuestions.slice(0, selectedRotatingCount);
+      // Update the database (in batch if possible)
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('user_questions')
+          .update({ position: update.position })
+          .eq('id', update.id);
+          
+        if (error) throw error;
+      }
+      
+      // Update the local state
+      setQuestions([...typeQuestions, ...otherQuestions]);
+      
+      toast({
+        title: "Questions reordered",
+        description: "Your questions have been successfully reordered.",
+      });
+    } catch (error) {
+      console.error('Error reordering questions:', error);
+      toast({
+        title: "Failed to reorder questions",
+        description: "There was an error reordering your questions. Please try again.",
+        variant: "destructive",
+      });
+      
+      // Revert to the original order by fetching again
+      fetchQuestions();
     }
-
-    setTodaysMorningQuestions([...mandatoryQuestions, ...rotatingQuestions]);
   };
 
-  const generateTodaysEveningQuestions = (today: string) => {
-    // For evening questions, we show all of them
-    const activeEveningQuestions = questions.filter(q => q.isActive && q.type === 'evening');
-    setTodaysEveningQuestions(activeEveningQuestions);
-  };
-
-  // Call on initial load and whenever questions change
-  useEffect(() => {
-    if (questions.length > 0) {
-      refreshTodaysQuestions();
+  const saveEntry = async (entry: Omit<Entry, 'id'>) => {
+    if (!user) return;
+    
+    try {
+      // First insert the entry
+      const { data: entryData, error: entryError } = await supabase
+        .from('user_entries')
+        .insert([{
+          user_id: user.id,
+          date: entry.date,
+          type: entry.type
+        }])
+        .select();
+        
+      if (entryError) throw entryError;
+      
+      if (entryData && entryData[0]) {
+        const entryId = entryData[0].id;
+        
+        // Then insert all answers
+        const answersToInsert = entry.answers.map(answer => ({
+          entry_id: entryId,
+          question_id: answer.questionId,
+          question_text: answer.questionText,
+          answer: answer.answer
+        }));
+        
+        const { error: answersError } = await supabase
+          .from('entry_answers')
+          .insert(answersToInsert);
+          
+        if (answersError) throw answersError;
+        
+        // Update local state
+        const newEntry: Entry = {
+          id: entryId,
+          date: entry.date,
+          type: entry.type,
+          answers: entry.answers
+        };
+        
+        setEntries(prev => [newEntry, ...prev]);
+        
+        toast({
+          title: "Entry saved",
+          description: `Your ${entry.type} reflection has been saved successfully.`,
+        });
+      }
+    } catch (error) {
+      console.error('Error saving entry:', error);
+      toast({
+        title: "Failed to save entry",
+        description: "There was an error saving your reflection. Please try again.",
+        variant: "destructive",
+      });
     }
-  }, [questions]);
-
-  const updateQuestion = (id: string, updates: Partial<Question>) => {
-    setQuestions(prevQuestions => 
-      prevQuestions.map(q => q.id === id ? { ...q, ...updates } : q)
-    );
-  };
-
-  const addQuestion = (question: Omit<Question, 'id'>) => {
-    const id = Date.now().toString();
-    setQuestions(prev => [...prev, { ...question, id }]);
-  };
-
-  const removeQuestion = (id: string) => {
-    setQuestions(prev => prev.filter(q => q.id !== id));
-  };
-
-  const saveEntry = (entry: Omit<Entry, 'id'>) => {
-    const id = Date.now().toString();
-    const newEntry = { ...entry, id };
-    setEntries(prev => [...prev, newEntry]);
-  };
-
-  const getEntries = (date: string) => {
-    return entries.filter(entry => entry.date.startsWith(date));
   };
 
   return (
-    <QuestionsContext.Provider value={{
-      questions,
-      entries,
-      todaysMorningQuestions,
-      todaysEveningQuestions,
-      updateQuestion,
-      addQuestion,
-      removeQuestion,
-      saveEntry,
-      getEntries,
-      refreshTodaysQuestions
-    }}>
+    <QuestionsContext.Provider
+      value={{
+        questions,
+        entries,
+        isLoading,
+        fetchQuestions,
+        addQuestion,
+        updateQuestion,
+        removeQuestion,
+        reorderQuestions,
+        saveEntry,
+      }}
+    >
       {children}
     </QuestionsContext.Provider>
   );

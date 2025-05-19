@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
@@ -10,6 +10,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Sun, Moon } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 const reminderFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
@@ -24,42 +26,132 @@ type ReminderFormValues = z.infer<typeof reminderFormSchema>;
 const EmailReminderForm = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
   
-  // Load saved values from localStorage
-  const getSavedValues = (): ReminderFormValues => {
-    const savedValues = localStorage.getItem('emailReminders');
-    if (savedValues) {
-      return JSON.parse(savedValues);
+  // Load saved values from Supabase
+  const getSavedValues = async (): Promise<ReminderFormValues> => {
+    if (!user) {
+      return {
+        email: '',
+        morningEnabled: false,
+        morningTime: '08:00',
+        eveningEnabled: false,
+        eveningTime: '20:00',
+      };
     }
-    return {
+    
+    try {
+      const { data, error } = await supabase
+        .from('email_reminders')
+        .select('*')
+        .eq('user_id', user.id);
+        
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        const reminder = data[0];
+        return {
+          email: reminder.email,
+          morningEnabled: reminder.is_morning,
+          morningTime: reminder.is_morning ? reminder.reminder_time.substring(0, 5) : '08:00',
+          eveningEnabled: reminder.is_evening,
+          eveningTime: reminder.is_evening ? reminder.reminder_time.substring(0, 5) : '20:00',
+        };
+      }
+      
+      // If no reminders found, use default values
+      return {
+        email: user.email || '',
+        morningEnabled: false,
+        morningTime: '08:00',
+        eveningEnabled: false,
+        eveningTime: '20:00',
+      };
+    } catch (error) {
+      console.error("Error loading reminder settings:", error);
+      
+      // Return defaults on error
+      return {
+        email: user?.email || '',
+        morningEnabled: false,
+        morningTime: '08:00',
+        eveningEnabled: false,
+        eveningTime: '20:00',
+      };
+    }
+  };
+
+  const form = useForm<ReminderFormValues>({
+    resolver: zodResolver(reminderFormSchema),
+    defaultValues: {
       email: '',
       morningEnabled: false,
       morningTime: '08:00',
       eveningEnabled: false,
       eveningTime: '20:00',
-    };
-  };
-
-  const form = useForm<ReminderFormValues>({
-    resolver: zodResolver(reminderFormSchema),
-    defaultValues: getSavedValues(),
+    },
   });
 
-  const handleSubmit = (values: ReminderFormValues) => {
+  // Load saved values
+  useEffect(() => {
+    if (user) {
+      getSavedValues().then(values => {
+        form.reset(values);
+      });
+    }
+  }, [user]);
+
+  const handleSubmit = async (values: ReminderFormValues) => {
+    if (!user) return;
+    
     setIsSubmitting(true);
     
     try {
-      // Save to localStorage
-      localStorage.setItem('emailReminders', JSON.stringify(values));
+      // Check if reminders already exist
+      const { data, error: fetchError } = await supabase
+        .from('email_reminders')
+        .select('id')
+        .eq('user_id', user.id);
+        
+      if (fetchError) throw fetchError;
       
-      // In a real application, you would send this to a backend API
-      // to schedule the emails, but for now we'll just simulate success
+      if (data && data.length > 0) {
+        // Update existing reminders
+        const reminderId = data[0].id;
+        
+        const { error: updateError } = await supabase
+          .from('email_reminders')
+          .update({
+            email: values.email,
+            reminder_time: values.morningEnabled ? values.morningTime : values.eveningTime,
+            is_morning: values.morningEnabled,
+            is_evening: values.eveningEnabled,
+            is_active: values.morningEnabled || values.eveningEnabled
+          })
+          .eq('id', reminderId);
+          
+        if (updateError) throw updateError;
+      } else {
+        // Insert new reminders
+        const { error: insertError } = await supabase
+          .from('email_reminders')
+          .insert([{
+            user_id: user.id,
+            email: values.email,
+            reminder_time: values.morningEnabled ? values.morningTime : values.eveningTime,
+            is_morning: values.morningEnabled,
+            is_evening: values.eveningEnabled,
+            is_active: values.morningEnabled || values.eveningEnabled
+          }]);
+          
+        if (insertError) throw insertError;
+      }
       
       toast({
         title: "Reminders saved",
         description: "Your email reminder settings have been saved.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving reminder settings:", error);
       toast({
         title: "Error saving",
