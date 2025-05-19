@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -150,33 +149,19 @@ const DailyQuestions: React.FC = () => {
         return;
       }
       
-      // Get the current entries to check for existing one
-      const todaysEntries = getEntries(today);
-      const existingEntry = todaysEntries.find(entry => entry.type === activeTab);
-      
-      // Prepare answers for saving
+      // Prepare answers for saving - include ALL answers, not just the one that changed
       const entryAnswers = activeQuestions.map(question => ({
         questionId: question.id,
         questionText: question.text,
         answer: activeAnswers[question.id] || ''
       }));
       
-      // If we have an existing entry, delete it first (this resolves the issue with disappearing responses)
-      if (existingEntry) {
-        // Instead of updating in place, we'll create a new entry that will replace the old one
-        await saveEntry({
-          date: today,
-          type: activeTab as 'morning' | 'evening',
-          answers: entryAnswers
-        });
-      } else {
-        // No existing entry, save a new one
-        await saveEntry({
-          date: today,
-          type: activeTab as 'morning' | 'evening',
-          answers: entryAnswers
-        });
-      }
+      // Save entry - this will now properly handle merging with existing data
+      await saveEntry({
+        date: today,
+        type: activeTab as 'morning' | 'evening',
+        answers: entryAnswers
+      });
       
       // Update last auto-save timestamp
       setLastAutoSave(currentTime);
@@ -192,7 +177,7 @@ const DailyQuestions: React.FC = () => {
       console.error("Error auto-saving:", error);
       setSaveStatus("idle");
     }
-  }, [activeTab, morningAnswers, eveningAnswers, todaysMorningQuestions, todaysEveningQuestions, saveEntry, lastAutoSave, getEntries, today]);
+  }, [activeTab, morningAnswers, eveningAnswers, todaysMorningQuestions, todaysEveningQuestions, saveEntry, lastAutoSave, today]);
   
   // Cleanup auto-save timer on unmount
   useEffect(() => {

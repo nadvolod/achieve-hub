@@ -461,71 +461,129 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       
       if (fetchError) throw fetchError;
       
-      // If there's an existing entry, delete it first
+      // Get the existing entry ID if it exists
+      let existingEntryId: string | null = null;
+      
       if (existingEntries && existingEntries.length > 0) {
-        // Delete associated answers first
-        const { error: deleteAnswersError } = await supabase
+        existingEntryId = existingEntries[0].id;
+        
+        // Get the existing answers for this entry
+        const { data: existingAnswers, error: existingAnswersError } = await supabase
           .from('entry_answers')
-          .delete()
-          .eq('entry_id', existingEntries[0].id);
-        
-        if (deleteAnswersError) throw deleteAnswersError;
-        
-        // Then delete the entry
-        const { error: deleteEntryError } = await supabase
+          .select('*')
+          .eq('entry_id', existingEntryId);
+          
+        if (existingAnswersError) throw existingAnswersError;
+
+        // Create a map of existing answers by question ID
+        const existingAnswersMap: Record<string, any> = {};
+        if (existingAnswers) {
+          existingAnswers.forEach(answer => {
+            existingAnswersMap[answer.question_id] = answer;
+          });
+        }
+
+        // Update each answer one by one instead of deleting and re-creating
+        for (const answer of entry.answers) {
+          if (existingAnswersMap[answer.questionId]) {
+            // Update existing answer
+            const { error: updateError } = await supabase
+              .from('entry_answers')
+              .update({
+                answer: answer.answer,
+                // Keep the question_text as it was or update if changed
+                question_text: answer.questionText
+              })
+              .eq('id', existingAnswersMap[answer.questionId].id);
+              
+            if (updateError) throw updateError;
+            
+            // Remove from map to track which ones we've processed
+            delete existingAnswersMap[answer.questionId];
+          } else {
+            // Insert new answer
+            const { error: insertError } = await supabase
+              .from('entry_answers')
+              .insert({
+                entry_id: existingEntryId,
+                question_id: answer.questionId,
+                question_text: answer.questionText,
+                answer: answer.answer
+              });
+              
+            if (insertError) throw insertError;
+          }
+        }
+
+        // Now handle any answers for questions that might have been removed
+        // We'll keep them as they are to preserve the user's data
+      } else {
+        // Create new entry since none exists
+        const { data: entryData, error: entryError } = await supabase
           .from('user_entries')
-          .delete()
-          .eq('id', existingEntries[0].id);
+          .insert({
+            user_id: user.id,
+            date: entry.date.split('T')[0], // Ensure we're using just the date part
+            type: entry.type
+          })
+          .select();
         
-        if (deleteEntryError) throw deleteEntryError;
+        if (entryError) throw entryError;
         
-        // Remove from local state
-        setEntries(prev => prev.filter(e => 
-          !(e.id === existingEntries[0].id && 
-            e.date.startsWith(entry.date.split('T')[0]) && 
-            e.type === entry.type)
-        ));
+        // Then save each answer
+        if (entryData && entryData[0]) {
+          existingEntryId = entryData[0].id;
+          
+          // Prepare answers for insertion
+          const answersToInsert = entry.answers.map(answer => ({
+            entry_id: existingEntryId,
+            question_id: answer.questionId,
+            question_text: answer.questionText,
+            answer: answer.answer
+          }));
+          
+          // Only insert if we have answers
+          if (answersToInsert.length > 0) {
+            const { error: answersError } = await supabase
+              .from('entry_answers')
+              .insert(answersToInsert);
+            
+            if (answersError) throw answersError;
+          }
+        }
       }
       
-      // Create new entry
-      const { data: entryData, error: entryError } = await supabase
-        .from('user_entries')
-        .insert({
-          user_id: user.id,
-          date: entry.date.split('T')[0], // Ensure we're using just the date part
-          type: entry.type
-        })
-        .select();
-      
-      if (entryError) throw entryError;
-      
-      // Then save each answer
-      if (entryData && entryData[0]) {
-        const entryId = entryData[0].id;
-        
-        // Prepare answers for insertion
-        const answersToInsert = entry.answers.map(answer => ({
-          entry_id: entryId,
-          question_id: answer.questionId,
-          question_text: answer.questionText,
-          answer: answer.answer
-        }));
-        
-        const { error: answersError } = await supabase
+      // Update entries in local state to reflect changes
+      // We need to fetch the complete updated entry
+      if (existingEntryId) {
+        const { data: updatedAnswers, error: updatedAnswersError } = await supabase
           .from('entry_answers')
-          .insert(answersToInsert);
+          .select('*')
+          .eq('entry_id', existingEntryId);
+          
+        if (updatedAnswersError) throw updatedAnswersError;
         
-        if (answersError) throw answersError;
-        
-        // Update local state
-        const newEntry: Entry = {
-          id: entryId,
+        // Create the updated entry
+        const updatedEntry: Entry = {
+          id: existingEntryId,
           date: entry.date,
           type: entry.type,
-          answers: entry.answers
+          answers: updatedAnswers ? updatedAnswers.map(a => ({
+            questionId: a.question_id,
+            questionText: a.question_text,
+            answer: a.answer
+          })) : []
         };
         
-        setEntries(prev => [...prev, newEntry]);
+        // Update local state
+        setEntries(prev => {
+          // Remove any existing entry for this date and type
+          const filtered = prev.filter(e => 
+            !(e.date.startsWith(entry.date.split('T')[0]) && e.type === entry.type)
+          );
+          // Add the updated entry
+          return [...filtered, updatedEntry];
+        });
       }
     } catch (error) {
       console.error("Error saving entry:", error);
