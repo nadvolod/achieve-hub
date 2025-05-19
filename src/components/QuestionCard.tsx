@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   readOnly = false
 }) => {
   const [localAnswer, setLocalAnswer] = useState(answer);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   useEffect(() => {
     setLocalAnswer(answer);
@@ -27,8 +28,25 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newAnswer = e.target.value;
     setLocalAnswer(newAnswer);
-    onAnswerChange(newAnswer);
+    
+    // Debounce the callback to avoid excessive updates
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    debounceTimerRef.current = setTimeout(() => {
+      onAnswerChange(newAnswer);
+    }, 300);
   };
+  
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
   
   return (
     <Card className={`mb-4 transition-all duration-200 border-l-4 

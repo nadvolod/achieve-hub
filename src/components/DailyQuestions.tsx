@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,6 +25,8 @@ const DailyQuestions: React.FC = () => {
   const [eveningAnswers, setEveningAnswers] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("morning");
+  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
+  const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
   
   const today = getTodayDateString();
   const formattedDate = formatDate(today);
@@ -78,6 +80,9 @@ const DailyQuestions: React.FC = () => {
       ...prev,
       [questionId]: answer
     }));
+    
+    // Trigger auto-save timer
+    scheduleAutoSave();
   };
   
   const handleEveningAnswerChange = (questionId: string, answer: string) => {
@@ -85,7 +90,76 @@ const DailyQuestions: React.FC = () => {
       ...prev,
       [questionId]: answer
     }));
+    
+    // Trigger auto-save timer
+    scheduleAutoSave();
   };
+  
+  // Auto-save functionality
+  const scheduleAutoSave = useCallback(() => {
+    // Clear existing timer if there is one
+    if (autoSaveTimer) {
+      clearTimeout(autoSaveTimer);
+    }
+    
+    // Set a new timer for auto-save (5 seconds after typing stops)
+    const timer = setTimeout(() => {
+      autoSaveEntries();
+    }, 5000);
+    
+    setAutoSaveTimer(timer);
+  }, [autoSaveTimer]);
+  
+  // Function to perform the auto-save
+  const autoSaveEntries = useCallback(async () => {
+    const currentTime = new Date();
+    const activeAnswers = activeTab === "morning" ? morningAnswers : eveningAnswers;
+    const activeQuestions = activeTab === "morning" ? todaysMorningQuestions : todaysEveningQuestions;
+    
+    // Check if there are any non-empty answers to save
+    const hasAnswers = Object.values(activeAnswers).some(answer => answer.trim() !== '');
+    
+    // Don't auto-save if no answers or if last auto-save was less than 10 seconds ago
+    if (!hasAnswers || (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 10000)) {
+      return;
+    }
+    
+    try {
+      const entryAnswers = activeQuestions.map(question => ({
+        questionId: question.id,
+        questionText: question.text,
+        answer: activeAnswers[question.id] || ''
+      }));
+      
+      // Save draft entry
+      await saveEntry({
+        date: new Date().toISOString(),
+        type: activeTab as 'morning' | 'evening',
+        answers: entryAnswers
+      });
+      
+      // Update last auto-save timestamp
+      setLastAutoSave(currentTime);
+      
+      // Show subtle toast notification
+      toast({
+        title: "Progress saved",
+        description: "Your answers have been auto-saved.",
+        duration: 2000
+      });
+    } catch (error) {
+      console.error("Error auto-saving:", error);
+    }
+  }, [activeTab, morningAnswers, eveningAnswers, todaysMorningQuestions, todaysEveningQuestions, saveEntry, lastAutoSave, toast]);
+  
+  // Cleanup auto-save timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+      }
+    };
+  }, [autoSaveTimer]);
   
   const handleSaveMorning = async () => {
     // Validate mandatory questions are answered
