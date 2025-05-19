@@ -132,48 +132,57 @@ const DailyQuestions: React.FC = () => {
     try {
       const currentTime = new Date();
       
-      // Don't auto-save if last auto-save was less than 1 second ago
-      if (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 1000) {
+      // Don't auto-save if last auto-save was less than 500ms ago
+      if (lastAutoSave && currentTime.getTime() - lastAutoSave.getTime() < 500) {
         setSaveStatus("idle");
         return;
       }
       
       // Get the current active tab and related data
       const isActiveMorning = activeTab === "morning";
-      const activeQuestions = isActiveMorning ? todaysMorningQuestions : todaysEveningQuestions;
-      const allAnswers = isActiveMorning ? morningAnswers : eveningAnswers;
       
-      // Always include ALL answers in the save, not just changed ones
-      const entryAnswers = activeQuestions.map(question => ({
+      // IMPORTANT: Always include BOTH morning and evening answers, regardless of active tab
+      // This ensures we don't lose data when switching tabs
+      
+      // Process morning answers
+      const morningEntryAnswers = todaysMorningQuestions.map(question => ({
         questionId: question.id,
         questionText: question.text,
-        answer: allAnswers[question.id] || ''
+        answer: morningAnswers[question.id] || ''
       }));
       
-      // Only save if we have at least one answer with content
-      const hasAnswers = Object.values(allAnswers).some(answer => answer.trim() !== '');
-      if (!hasAnswers) {
+      // Process evening answers
+      const eveningEntryAnswers = todaysEveningQuestions.map(question => ({
+        questionId: question.id,
+        questionText: question.text,
+        answer: eveningAnswers[question.id] || ''
+      }));
+      
+      // Only save the currently active tab if it has content
+      const currentAnswers = isActiveMorning ? morningAnswers : eveningAnswers;
+      const hasAnswers = Object.values(currentAnswers).some(answer => answer.trim() !== '');
+      
+      if (hasAnswers) {
+        // Save the entry for the active tab
+        await saveEntry({
+          date: today,
+          type: isActiveMorning ? 'morning' : 'evening',
+          answers: isActiveMorning ? morningEntryAnswers : eveningEntryAnswers
+        });
+        
+        // Update last auto-save timestamp
+        setLastAutoSave(currentTime);
+        
+        // Update save status to "saved"
+        setSaveStatus("saved");
+        
+        // Reset status to idle after 2 seconds
+        setTimeout(() => {
+          setSaveStatus("idle");
+        }, 2000);
+      } else {
         setSaveStatus("idle");
-        return;
       }
-      
-      // Save entry with all answers
-      await saveEntry({
-        date: today,
-        type: isActiveMorning ? 'morning' : 'evening',
-        answers: entryAnswers
-      });
-      
-      // Update last auto-save timestamp
-      setLastAutoSave(currentTime);
-      
-      // Update save status to "saved"
-      setSaveStatus("saved");
-      
-      // Reset status to idle after 3 seconds
-      setTimeout(() => {
-        setSaveStatus("idle");
-      }, 3000);
     } catch (error) {
       console.error("Error auto-saving:", error);
       setSaveStatus("idle");

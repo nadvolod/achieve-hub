@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,14 +36,14 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
       clearTimeout(debounceTimerRef.current);
     }
     
-    // Very short debounce time for immediate responsiveness
+    // Super short debounce time for nearly immediate responsiveness
     debounceTimerRef.current = setTimeout(() => {
       onAnswerChange(newAnswer);
       // Reset editing state after a short delay
       setTimeout(() => {
         setIsEditing(false);
-      }, 300);
-    }, 100); // Ultra responsive - just enough debounce to batch keystrokes
+      }, 200);
+    }, 50); // Ultra responsive - just enough debounce to batch keystrokes
   };
   
   useEffect(() => {

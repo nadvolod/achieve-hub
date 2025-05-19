@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
@@ -467,31 +468,42 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       if (existingEntries && existingEntries.length > 0) {
         existingEntryId = existingEntries[0].id;
         
-        // Save each answer individually to avoid deleting existing ones
+        // Get existing answers for this entry to merge with new ones
+        const { data: existingAnswers, error: answersError } = await supabase
+          .from('entry_answers')
+          .select('*')
+          .eq('entry_id', existingEntryId);
+          
+        if (answersError) throw answersError;
+        
+        // Create a map of existing answers by question ID
+        const existingAnswersMap = new Map();
+        if (existingAnswers) {
+          existingAnswers.forEach(answer => {
+            existingAnswersMap.set(answer.question_id, {
+              id: answer.id,
+              answer: answer.answer
+            });
+          });
+        }
+        
+        // Process each new answer
         for (const answer of entry.answers) {
-          // First check if this question already has an answer
-          const { data: existingAnswer, error: checkError } = await supabase
-            .from('entry_answers')
-            .select('id')
-            .eq('entry_id', existingEntryId)
-            .eq('question_id', answer.questionId)
-            .single();
-            
-          if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
-            throw checkError;
-          }
+          const existingAnswer = existingAnswersMap.get(answer.questionId);
           
           if (existingAnswer) {
-            // Update existing answer
-            const { error: updateError } = await supabase
-              .from('entry_answers')
-              .update({
-                answer: answer.answer,
-                question_text: answer.questionText
-              })
-              .eq('id', existingAnswer.id);
-              
-            if (updateError) throw updateError;
+            // Update existing answer if content changed
+            if (existingAnswer.answer !== answer.answer) {
+              const { error: updateError } = await supabase
+                .from('entry_answers')
+                .update({
+                  answer: answer.answer,
+                  question_text: answer.questionText
+                })
+                .eq('id', existingAnswer.id);
+                
+              if (updateError) throw updateError;
+            }
           } else {
             // Insert new answer if it doesn't exist
             const { error: insertError } = await supabase
@@ -565,9 +577,9 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           })) : []
         };
         
-        // Update local state
+        // Update local state - IMPORTANT: Only update the specific entry that was changed
+        // Don't remove other entries of different types for the same date
         setEntries(prev => {
-          // Remove any existing entry for this date and type
           const filtered = prev.filter(e => 
             !(e.date.startsWith(entry.date.split('T')[0]) && e.type === entry.type)
           );
