@@ -19,22 +19,36 @@ interface EntryListProps {
 }
 
 const EntryList: React.FC<EntryListProps> = ({ selectedDate }) => {
-  const { entries, getEntries } = useQuestions();
+  const { entries, getEntries, refreshEntries } = useQuestions();
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
   const [displayEntries, setDisplayEntries] = useState<Entry[]>([]);
   
-  // Use effect to ensure we get the latest entries when the component mounts
-  // or when the entries prop changes or selectedDate changes
+  // Force refresh entries when component mounts or when dependencies change
   useEffect(() => {
+    console.log("EntryList: Forcing refresh of entries");
+    refreshEntries();
+  }, [refreshEntries]);
+  
+  // Update displayEntries when entries or selectedDate changes
+  useEffect(() => {
+    console.log("EntryList: Updating display entries", { 
+      selectedDate, 
+      entriesCount: entries.length 
+    });
+    
     if (selectedDate) {
-      // If a date is selected, ensure we're getting the freshest entries for that date
-      const freshEntries = getEntries(selectedDate);
-      setDisplayEntries(freshEntries);
+      // If a date is selected, get entries for that date
+      const filteredEntries = getEntries(selectedDate);
+      console.log("EntryList: Filtered entries for date", { 
+        date: selectedDate, 
+        count: filteredEntries.length 
+      });
+      setDisplayEntries(filteredEntries);
     } else {
       // If no date is selected, use all entries
+      console.log("EntryList: Using all entries", { count: entries.length });
       setDisplayEntries([...entries]);
     }
-    // Important to have entries and selectedDate in the dependency array
   }, [selectedDate, entries, getEntries]);
   
   // Simply use displayEntries for rendering, it already contains the right data

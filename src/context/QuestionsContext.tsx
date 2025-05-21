@@ -159,6 +159,8 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
     try {
       if (!user) return;
 
+      console.log("QuestionsContext: Fetching entries from Supabase");
+
       // Fetch entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('user_entries')
@@ -167,10 +169,13 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
 
       if (entriesError) throw entriesError;
 
+      console.log("QuestionsContext: Received entries data", { count: entriesData?.length || 0 });
+
       // Fetch answers for all entries
       const entryIds = entriesData.map(entry => entry.id);
       
       if (entryIds.length === 0) {
+        console.log("QuestionsContext: No entries found, setting empty array");
         setEntries([]);
         return;
       }
@@ -181,6 +186,8 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
         .in('entry_id', entryIds);
 
       if (answersError) throw answersError;
+
+      console.log("QuestionsContext: Received answers data", { count: answersData?.length || 0 });
 
       // Map and combine the data
       const formattedEntries: Entry[] = entriesData.map(entry => {
@@ -198,6 +205,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
         };
       });
 
+      console.log("QuestionsContext: Setting formatted entries", { count: formattedEntries.length });
       setEntries(formattedEntries);
     } catch (error) {
       console.error("Error fetching entries:", error);
@@ -211,9 +219,11 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
     }
   }, [user, toast]);
   
-  // Function to refresh entries (useful for History page)
-  const refreshEntries = useCallback(() => {
-    fetchEntries();
+  // Make refreshEntries a function that awaits the fetchEntries call
+  const refreshEntries = useCallback(async () => {
+    console.log("QuestionsContext: refreshEntries called");
+    await fetchEntries();
+    return true; // Return a value to indicate completion
   }, [fetchEntries]);
 
   const updateTodaysQuestions = () => {

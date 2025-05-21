@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import DatePicker from "@/components/DatePicker";
 import EntryList from "@/components/EntryList";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, History as HistoryIcon } from "lucide-react";
+import { Calendar, History as HistoryIcon, RefreshCw } from "lucide-react";
 import { useQuestions } from "../context/QuestionsContext";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -13,21 +13,22 @@ const History = () => {
   const [viewMode, setViewMode] = useState<"date" | "all">("all");
   const { refreshEntries, entries } = useQuestions();
   const { toast } = useToast();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Ensure we fetch the latest entries when the component mounts or becomes active
   useEffect(() => {
-    console.log("History: Refreshing entries");
+    console.log("History: Component mounted, refreshing entries");
+    handleRefresh();
     
-    // Immediately refresh entries when component mounts
-    refreshEntries();
+    // Set up an interval to refresh entries every 10 seconds while the component is mounted
+    const intervalId = setInterval(() => {
+      console.log("History: Auto-refreshing entries");
+      refreshEntries();
+    }, 10000);
     
-    // Show toast to indicate loading
-    toast({
-      title: "Loading entries",
-      description: "Fetching your latest reflection entries...",
-    });
-    
-  }, [refreshEntries, toast]);
+    // Clear the interval when the component unmounts
+    return () => clearInterval(intervalId);
+  }, [refreshEntries]);
   
   const handleSelectDate = (date: string) => {
     setSelectedDate(date);
@@ -39,12 +40,26 @@ const History = () => {
     setViewMode("all");
   };
 
-  const handleRefresh = () => {
-    refreshEntries();
-    toast({
-      title: "Entries refreshed",
-      description: "Your reflection entries have been updated.",
-    });
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    console.log("History: Manual refresh triggered");
+    
+    try {
+      await refreshEntries();
+      toast({
+        title: "Entries refreshed",
+        description: "Your reflection entries have been updated.",
+      });
+    } catch (error) {
+      console.error("Error refreshing entries:", error);
+      toast({
+        title: "Refresh failed",
+        description: "Could not refresh your entries. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
   
   return (
@@ -56,9 +71,13 @@ const History = () => {
           <h1 className="text-2xl font-bold text-navy-500">Reflection History</h1>
           <button 
             onClick={handleRefresh}
-            className="text-sm text-teal-500 hover:text-teal-700 flex items-center gap-1"
+            disabled={isRefreshing}
+            className="text-sm text-teal-500 hover:text-teal-700 flex items-center gap-1 disabled:opacity-50"
           >
-            <span className="h-4 w-4">⟳</span> Refresh
+            <span className={`h-4 w-4 inline-block ${isRefreshing ? 'animate-spin' : ''}`}>
+              {isRefreshing ? '⟳' : <RefreshCw className="h-4 w-4" />}
+            </span> 
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
         <p className="text-gray-600 mb-6">
