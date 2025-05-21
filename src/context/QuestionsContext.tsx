@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
@@ -121,7 +122,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
   const [isLoading, setIsLoading] = useState(true);
   const [todaysMorningQuestions, setTodaysMorningQuestions] = useState<Question[]>([]);
   const [todaysEveningQuestions, setTodaysEveningQuestions] = useState<Question[]>([]);
-  const { user } = useAuth();
+  const { user, updateStreak } = useAuth();
   const { toast } = useToast();
 
   const fetchQuestions = async () => {
@@ -160,6 +161,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       if (!user) return;
 
       console.log("QuestionsContext: Fetching entries from Supabase");
+      setIsLoading(true);
 
       // Fetch entries
       const { data: entriesData, error: entriesError } = await supabase
@@ -177,6 +179,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       if (entryIds.length === 0) {
         console.log("QuestionsContext: No entries found, setting empty array");
         setEntries([]);
+        setIsLoading(false);
         return;
       }
 
@@ -483,6 +486,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       
       // Get the existing entry ID if it exists
       let existingEntryId: string | null = null;
+      let isNewEntry = false;
       
       if (existingEntries && existingEntries.length > 0) {
         existingEntryId = existingEntries[0].id;
@@ -544,6 +548,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
         
       } else {
         // Create new entry since none exists
+        isNewEntry = true;
         const { data: entryData, error: entryError } = await supabase
           .from('user_entries')
           .insert({
@@ -612,6 +617,19 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           // Add the updated entry
           return [...filtered, updatedEntry];
         });
+        
+        // Update streak
+        try {
+          console.log("Updating streak after entry save");
+          await updateStreak();
+        } catch (streakError) {
+          console.error("Error updating streak:", streakError);
+        }
+        
+        // Refresh entries to get latest data
+        setTimeout(() => {
+          refreshEntries();
+        }, 500);
       }
     } catch (error) {
       console.error("Error saving entry:", error);

@@ -15,20 +15,46 @@ const History = () => {
   const { toast } = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Ensure we fetch the latest entries when the component mounts or becomes active
+  // Ensure we fetch the latest entries when the component mounts
   useEffect(() => {
     console.log("History: Component mounted, refreshing entries");
-    handleRefresh();
+    const initialLoad = async () => {
+      await handleRefresh();
+      
+      // Set up an interval to refresh entries every 5 seconds while the component is mounted
+      const intervalId = setInterval(async () => {
+        console.log("History: Auto-refreshing entries");
+        try {
+          await refreshEntries();
+        } catch (error) {
+          console.error("Error auto-refreshing entries:", error);
+        }
+      }, 5000); // Reduced from 10s to 5s for more frequent updates
+      
+      // Clear the interval when the component unmounts
+      return () => clearInterval(intervalId);
+    };
     
-    // Set up an interval to refresh entries every 10 seconds while the component is mounted
-    const intervalId = setInterval(() => {
-      console.log("History: Auto-refreshing entries");
-      refreshEntries();
-    }, 10000);
-    
-    // Clear the interval when the component unmounts
-    return () => clearInterval(intervalId);
+    initialLoad();
   }, [refreshEntries]);
+  
+  // Also refresh when navigating back to this page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("History: Page became visible, refreshing entries");
+        handleRefresh();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleRefresh);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleRefresh);
+    };
+  }, []);
   
   const handleSelectDate = (date: string) => {
     setSelectedDate(date);

@@ -139,11 +139,12 @@ const DailyQuestions: React.FC = () => {
         });
       }
       
-      // Update streak after saving
+      // Force update streak immediately
+      console.log("DailyQuestions: Explicitly updating streak after save");
       await updateStreak();
       
       // Refresh entries to ensure History page shows the latest data
-      refreshEntries();
+      await refreshEntries();
       
       toast({
         title: `${activeTab === "morning" ? "Morning" : "Evening"} entries saved`,

@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { Sun, Moon } from "lucide-react";
 import { useQuestions, Entry } from "../context/QuestionsContext";
 import { formatDate, groupEntriesByMonth } from "../utils/questionsUtils";
-import QuestionCard from "./QuestionCard";
 
 interface EntryListProps {
   selectedDate?: string;
@@ -23,10 +22,19 @@ const EntryList: React.FC<EntryListProps> = ({ selectedDate }) => {
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
   const [displayEntries, setDisplayEntries] = useState<Entry[]>([]);
   
-  // Force refresh entries when component mounts or when dependencies change
+  // Force refresh entries when component mounts
   useEffect(() => {
-    console.log("EntryList: Forcing refresh of entries");
-    refreshEntries();
+    console.log("EntryList: Forcing refresh of entries on mount");
+    const fetchData = async () => {
+      try {
+        await refreshEntries();
+        console.log("EntryList: Initial entries refresh complete");
+      } catch (error) {
+        console.error("EntryList: Error refreshing entries:", error);
+      }
+    };
+    
+    fetchData();
   }, [refreshEntries]);
   
   // Update displayEntries when entries or selectedDate changes

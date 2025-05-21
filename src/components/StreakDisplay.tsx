@@ -1,11 +1,32 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, Flame, Trophy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const StreakDisplay: React.FC = () => {
-  const { currentStreak, bestStreak } = useAuth();
+  const { currentStreak, bestStreak, updateStreak } = useAuth();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Force the streak to update when the component mounts
+  useEffect(() => {
+    const updateStreakData = async () => {
+      try {
+        await updateStreak();
+        // Force a re-render to show updated streaks
+        setRefreshKey(prev => prev + 1);
+      } catch (error) {
+        console.error("Error updating streak in StreakDisplay:", error);
+      }
+    };
+    
+    updateStreakData();
+    
+    // Set up interval to refresh streak data
+    const intervalId = setInterval(updateStreakData, 10000);
+    
+    return () => clearInterval(intervalId);
+  }, [updateStreak]);
 
   return (
     <div className="mb-6">
