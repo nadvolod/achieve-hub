@@ -1,36 +1,26 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, Flame, Trophy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const StreakDisplay: React.FC = () => {
   const { currentStreak, bestStreak, updateStreak } = useAuth();
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Force the streak to update when the component mounts
+  // Force the streak to update when the component mounts but don't set state
   useEffect(() => {
     const updateStreakData = async () => {
       try {
-        setIsLoading(true);
-        console.log("StreakDisplay: Forcing streak update");
+        console.log("StreakDisplay: Updating streak data");
         await updateStreak();
-        // Force a re-render to show updated streaks
-        setRefreshKey(prev => prev + 1);
       } catch (error) {
         console.error("Error updating streak in StreakDisplay:", error);
-      } finally {
-        setIsLoading(false);
       }
     };
     
     updateStreakData();
     
-    // Set up interval to refresh streak data very frequently
-    const intervalId = setInterval(updateStreakData, 3000);
-    
-    return () => clearInterval(intervalId);
+    // No need for interval refreshing - we'll update when needed
   }, [updateStreak]);
 
   return (
@@ -41,11 +31,7 @@ const StreakDisplay: React.FC = () => {
             <CardTitle className="text-lg font-medium text-navy-700">Your Streak</CardTitle>
             <CardDescription>Keep the momentum going!</CardDescription>
           </div>
-          {isLoading ? (
-            <span className="animate-spin text-teal-500">⟳</span>
-          ) : (
-            <Check className="h-5 w-5 text-teal-500" />
-          )}
+          <Check className="h-5 w-5 text-teal-500" />
         </CardHeader>
         <CardContent>
           <div className="flex justify-between">
