@@ -18,52 +18,82 @@ interface EntryListProps {
 }
 
 const EntryList: React.FC<EntryListProps> = ({ selectedDate }) => {
-  const { entries, getEntries, refreshEntries } = useQuestions();
+  const { entries, refreshEntries } = useQuestions();
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
   const [displayEntries, setDisplayEntries] = useState<Entry[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Force refresh entries when component mounts
   useEffect(() => {
-    console.log("EntryList: Forcing refresh of entries on mount");
     const fetchData = async () => {
+      setIsRefreshing(true);
+      console.log("EntryList: FORCING CRITICAL refresh of entries on mount");
+      
       try {
         await refreshEntries();
-        console.log("EntryList: Initial entries refresh complete");
+        console.log("EntryList: Critical refresh complete with entries count:", entries.length);
       } catch (error) {
         console.error("EntryList: Error refreshing entries:", error);
+      } finally {
+        setIsRefreshing(false);
       }
     };
     
     fetchData();
+    
+    // Set up more frequent refreshes
+    const intervalId = setInterval(async () => {
+      console.log("EntryList: Performing scheduled refresh");
+      await refreshEntries();
+    }, 3000);
+    
+    return () => clearInterval(intervalId);
   }, [refreshEntries]);
   
   // Update displayEntries when entries or selectedDate changes
   useEffect(() => {
     console.log("EntryList: Updating display entries", { 
       selectedDate, 
-      entriesCount: entries.length 
+      entriesCount: entries.length,
+      entriesData: entries 
     });
     
     if (selectedDate) {
       // If a date is selected, get entries for that date
-      const filteredEntries = getEntries(selectedDate);
+      const filteredEntries = entries.filter(entry => 
+        entry.date.startsWith(selectedDate)
+      );
       console.log("EntryList: Filtered entries for date", { 
         date: selectedDate, 
-        count: filteredEntries.length 
+        count: filteredEntries.length,
+        filteredData: filteredEntries
       });
       setDisplayEntries(filteredEntries);
     } else {
       // If no date is selected, use all entries
-      console.log("EntryList: Using all entries", { count: entries.length });
+      console.log("EntryList: Using all entries", { 
+        count: entries.length,
+        allData: entries
+      });
       setDisplayEntries([...entries]);
     }
-  }, [selectedDate, entries, getEntries]);
+  }, [selectedDate, entries]);
   
-  // Simply use displayEntries for rendering, it already contains the right data
+  // Simply use displayEntries for rendering
   const filteredEntries = displayEntries;
   
   // Group entries by month for accordion view
   const groupedEntries = groupEntriesByMonth(filteredEntries);
+  
+  if (isRefreshing) {
+    return (
+      <Card className="text-center p-8 my-6">
+        <CardContent className="text-gray-500 flex items-center justify-center">
+          <span className="animate-spin mr-2">⟳</span> Refreshing entries...
+        </CardContent>
+      </Card>
+    );
+  }
   
   if (entries.length === 0) {
     return (

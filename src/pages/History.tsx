@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, History as HistoryIcon, RefreshCw } from "lucide-react";
 import { useQuestions } from "../context/QuestionsContext";
 import { useToast } from "@/components/ui/use-toast";
+import StreakDisplay from "@/components/StreakDisplay";
 
 const History = () => {
   const [selectedDate, setSelectedDate] = useState<string | undefined>(undefined);
@@ -14,28 +15,27 @@ const History = () => {
   const { refreshEntries, entries } = useQuestions();
   const { toast } = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); // Add a refresh key to force re-renders
   
-  // Ensure we fetch the latest entries when the component mounts
+  // Force immediate refresh when component mounts
   useEffect(() => {
-    console.log("History: Component mounted, refreshing entries");
-    const initialLoad = async () => {
-      await handleRefresh();
-      
-      // Set up an interval to refresh entries every 5 seconds while the component is mounted
-      const intervalId = setInterval(async () => {
-        console.log("History: Auto-refreshing entries");
-        try {
-          await refreshEntries();
-        } catch (error) {
-          console.error("Error auto-refreshing entries:", error);
-        }
-      }, 5000); // Reduced from 10s to 5s for more frequent updates
-      
-      // Clear the interval when the component unmounts
-      return () => clearInterval(intervalId);
-    };
+    console.log("History: Component mounted, performing critical refresh");
+    handleRefresh(true); // Pass true to indicate critical refresh
     
-    initialLoad();
+    // Set up an interval to refresh entries VERY frequently while on this page
+    const intervalId = setInterval(async () => {
+      console.log("History: Auto-refreshing entries");
+      try {
+        await refreshEntries();
+        // Force re-render of component tree on each refresh
+        setRefreshKey(prev => prev + 1);
+      } catch (error) {
+        console.error("Error auto-refreshing entries:", error);
+      }
+    }, 3000); // Every 3 seconds for more aggressive updates
+    
+    // Clear the interval when the component unmounts
+    return () => clearInterval(intervalId);
   }, [refreshEntries]);
   
   // Also refresh when navigating back to this page
@@ -43,12 +43,12 @@ const History = () => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         console.log("History: Page became visible, refreshing entries");
-        handleRefresh();
+        handleRefresh(true);
       }
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleRefresh);
+    window.addEventListener('focus', () => handleRefresh(true));
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -66,16 +66,21 @@ const History = () => {
     setViewMode("all");
   };
 
-  const handleRefresh = async () => {
+  const handleRefresh = async (isCritical = false) => {
     setIsRefreshing(true);
-    console.log("History: Manual refresh triggered");
+    console.log(`History: ${isCritical ? "CRITICAL" : "Manual"} refresh triggered`);
     
     try {
       await refreshEntries();
-      toast({
-        title: "Entries refreshed",
-        description: "Your reflection entries have been updated.",
-      });
+      // Increment refresh key to force re-render
+      setRefreshKey(prev => prev + 1);
+      
+      if (!isCritical) {
+        toast({
+          title: "Entries refreshed",
+          description: "Your reflection entries have been updated.",
+        });
+      }
     } catch (error) {
       console.error("Error refreshing entries:", error);
       toast({
@@ -93,10 +98,13 @@ const History = () => {
       <Header />
       
       <main className="flex-1 pt-20 px-4 pb-4 max-w-md mx-auto w-full">
+        {/* Show streak at top of history page for immediate visibility */}
+        <StreakDisplay key={`streak-${refreshKey}`} />
+        
         <div className="flex justify-between items-center mb-2">
           <h1 className="text-2xl font-bold text-navy-500">Reflection History</h1>
           <button 
-            onClick={handleRefresh}
+            onClick={() => handleRefresh()}
             disabled={isRefreshing}
             className="text-sm text-teal-500 hover:text-teal-700 flex items-center gap-1 disabled:opacity-50"
           >
@@ -140,7 +148,10 @@ const History = () => {
           </div>
         )}
         
-        <EntryList selectedDate={viewMode === "date" ? selectedDate : undefined} />
+        <EntryList 
+          key={`entries-${refreshKey}`} 
+          selectedDate={viewMode === "date" ? selectedDate : undefined} 
+        />
       </main>
     </div>
   );
