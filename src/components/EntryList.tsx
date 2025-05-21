@@ -24,7 +24,7 @@ const EntryList: React.FC<EntryListProps> = ({ selectedDate }) => {
   const [displayEntries, setDisplayEntries] = useState<Entry[]>([]);
   
   // Use effect to ensure we get the latest entries when the component mounts
-  // or when the entries prop changes
+  // or when the entries prop changes or selectedDate changes
   useEffect(() => {
     if (selectedDate) {
       // If a date is selected, ensure we're getting the freshest entries for that date
@@ -34,12 +34,11 @@ const EntryList: React.FC<EntryListProps> = ({ selectedDate }) => {
       // If no date is selected, use all entries
       setDisplayEntries([...entries]);
     }
+    // Important to have entries and selectedDate in the dependency array
   }, [selectedDate, entries, getEntries]);
   
-  // Filter entries if a date is selected
-  const filteredEntries = selectedDate 
-    ? displayEntries
-    : displayEntries;
+  // Simply use displayEntries for rendering, it already contains the right data
+  const filteredEntries = displayEntries;
   
   // Group entries by month for accordion view
   const groupedEntries = groupEntriesByMonth(filteredEntries);
