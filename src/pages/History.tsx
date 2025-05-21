@@ -1,14 +1,21 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Header from "@/components/Header";
 import DatePicker from "@/components/DatePicker";
 import EntryList from "@/components/EntryList";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, History as HistoryIcon } from "lucide-react";
+import { useQuestions } from "../context/QuestionsContext";
 
 const History = () => {
   const [selectedDate, setSelectedDate] = useState<string | undefined>(undefined);
   const [viewMode, setViewMode] = useState<"date" | "all">("all");
+  const { refreshEntries } = useQuestions();
+  
+  // Ensure we fetch the latest entries when the component mounts
+  useEffect(() => {
+    refreshEntries();
+  }, [refreshEntries]);
   
   const handleSelectDate = (date: string) => {
     setSelectedDate(date);

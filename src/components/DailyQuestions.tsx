@@ -16,7 +16,8 @@ const DailyQuestions: React.FC = () => {
     todaysEveningQuestions, 
     saveEntry, 
     getEntries, 
-    refreshTodaysQuestions 
+    refreshTodaysQuestions,
+    refreshEntries
   } = useQuestions();
   
   const { toast } = useToast();
@@ -140,6 +141,9 @@ const DailyQuestions: React.FC = () => {
       
       // Update streak after saving
       await updateStreak();
+      
+      // Refresh entries to ensure History page shows the latest data
+      refreshEntries();
       
       toast({
         title: `${activeTab === "morning" ? "Morning" : "Evening"} entries saved`,

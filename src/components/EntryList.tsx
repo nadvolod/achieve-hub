@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -19,13 +19,27 @@ interface EntryListProps {
 }
 
 const EntryList: React.FC<EntryListProps> = ({ selectedDate }) => {
-  const { entries } = useQuestions();
+  const { entries, getEntries } = useQuestions();
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
+  const [displayEntries, setDisplayEntries] = useState<Entry[]>([]);
+  
+  // Use effect to ensure we get the latest entries when the component mounts
+  // or when the entries prop changes
+  useEffect(() => {
+    if (selectedDate) {
+      // If a date is selected, ensure we're getting the freshest entries for that date
+      const freshEntries = getEntries(selectedDate);
+      setDisplayEntries(freshEntries);
+    } else {
+      // If no date is selected, use all entries
+      setDisplayEntries([...entries]);
+    }
+  }, [selectedDate, entries, getEntries]);
   
   // Filter entries if a date is selected
   const filteredEntries = selectedDate 
-    ? entries.filter(entry => entry.date.startsWith(selectedDate)) 
-    : entries;
+    ? displayEntries
+    : displayEntries;
   
   // Group entries by month for accordion view
   const groupedEntries = groupEntriesByMonth(filteredEntries);

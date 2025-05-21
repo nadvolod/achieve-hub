@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
@@ -43,6 +43,7 @@ export type QuestionsContextType = {
   todaysEveningQuestions: Question[];
   getEntries: (date: string) => Entry[];
   refreshTodaysQuestions: () => void;
+  refreshEntries: () => void;
 };
 
 const QuestionsContext = createContext<QuestionsContextType | undefined>(undefined);
@@ -154,14 +155,15 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
     }
   };
 
-  const fetchEntries = async () => {
+  const fetchEntries = useCallback(async () => {
     try {
       if (!user) return;
 
       // Fetch entries
       const { data: entriesData, error: entriesError } = await supabase
         .from('user_entries')
-        .select('*');
+        .select('*')
+        .order('date', { ascending: false });
 
       if (entriesError) throw entriesError;
 
@@ -207,7 +209,12 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, toast]);
+  
+  // Function to refresh entries (useful for History page)
+  const refreshEntries = useCallback(() => {
+    fetchEntries();
+  }, [fetchEntries]);
 
   const updateTodaysQuestions = () => {
     const morningQuestions = questions
@@ -226,9 +233,9 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
     updateTodaysQuestions();
   };
 
-  const getEntries = (date: string): Entry[] => {
+  const getEntries = useCallback((date: string): Entry[] => {
     return entries.filter(entry => entry.date.startsWith(date));
-  };
+  }, [entries]);
 
   useEffect(() => {
     if (user) {
@@ -238,7 +245,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       setQuestions([]);
       setEntries([]);
     }
-  }, [user]);
+  }, [user, fetchEntries]);
 
   useEffect(() => {
     updateTodaysQuestions();
@@ -623,11 +630,29 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
         todaysEveningQuestions,
         getEntries,
         refreshTodaysQuestions,
+        refreshEntries,
       }}
     >
       {children}
     </QuestionsContext.Provider>
   );
+};
+
+export type QuestionsContextType = {
+  questions: Question[];
+  entries: Entry[];
+  isLoading: boolean;
+  addQuestion: (question: Omit<Question, 'id' | 'position'>) => Promise<void>;
+  updateQuestion: (id: string, updates: Partial<Omit<Question, 'id' | 'position'>>) => Promise<void>;
+  toggleQuestionActive: (id: string) => Promise<void>;
+  removeQuestion: (id: string) => Promise<void>;
+  reorderQuestions: (questionIds: string[], type: QuestionType) => Promise<void>;
+  saveEntry: (entry: Omit<Entry, 'id'>) => Promise<void>;
+  todaysMorningQuestions: Question[];
+  todaysEveningQuestions: Question[];
+  getEntries: (date: string) => Entry[];
+  refreshTodaysQuestions: () => void;
+  refreshEntries: () => void;
 };
 
 export const useQuestions = () => {
