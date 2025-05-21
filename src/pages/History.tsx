@@ -47,12 +47,18 @@ const History = () => {
       }
     };
     
+    // Properly handle window focus event
+    const handleWindowFocus = () => {
+      console.log("History: Window focused, refreshing entries");
+      handleRefresh(true);
+    };
+    
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', () => handleRefresh(true));
+    window.addEventListener('focus', handleWindowFocus);
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleRefresh);
+      window.removeEventListener('focus', handleWindowFocus);
     };
   }, []);
   
