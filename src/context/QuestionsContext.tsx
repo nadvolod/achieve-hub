@@ -638,23 +638,6 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
   );
 };
 
-export type QuestionsContextType = {
-  questions: Question[];
-  entries: Entry[];
-  isLoading: boolean;
-  addQuestion: (question: Omit<Question, 'id' | 'position'>) => Promise<void>;
-  updateQuestion: (id: string, updates: Partial<Omit<Question, 'id' | 'position'>>) => Promise<void>;
-  toggleQuestionActive: (id: string) => Promise<void>;
-  removeQuestion: (id: string) => Promise<void>;
-  reorderQuestions: (questionIds: string[], type: QuestionType) => Promise<void>;
-  saveEntry: (entry: Omit<Entry, 'id'>) => Promise<void>;
-  todaysMorningQuestions: Question[];
-  todaysEveningQuestions: Question[];
-  getEntries: (date: string) => Entry[];
-  refreshTodaysQuestions: () => void;
-  refreshEntries: () => void;
-};
-
 export const useQuestions = () => {
   const context = useContext(QuestionsContext);
   if (context === undefined) {
