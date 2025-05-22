@@ -9,7 +9,7 @@ import { useToast } from "@/components/ui/use-toast";
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { signOut } = useAuth(); // Changed from logout to signOut
   const { toast } = useToast();
   const [darkMode, setDarkMode] = useState(false);
 
@@ -32,7 +32,7 @@ const Header = () => {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut(); // Changed from logout to signOut
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",
