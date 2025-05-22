@@ -1,4 +1,3 @@
-
 import { Entry, Question } from "../context/QuestionsContext";
 
 // Format date as "May 16, 2025"
@@ -7,15 +6,21 @@ export const formatDate = (dateString: string): string => {
   return date.toLocaleDateString('en-US', { 
     year: 'numeric', 
     month: 'long', 
-    day: 'numeric' 
+    day: 'numeric',
+    timeZone: 'UTC' // Force UTC to avoid timezone issues
   });
 };
 
 // Get today's date as ISO string (YYYY-MM-DD)
 export const getTodayDateString = (): string => {
   // Create a fresh Date object to ensure we get the current date
+  // Get the local date components to avoid timezone issues
   const today = new Date();
-  return today.toISOString().split('T')[0];
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+  const day = String(today.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
 };
 
 // Sort entries by date (most recent first)

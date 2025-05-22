@@ -26,8 +26,8 @@ const DailyQuestions: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("morning");
   
-  // Make sure we're getting the actual current date, not a cached one
-  const today = new Date().toISOString().split('T')[0];
+  // Use the improved getTodayDateString function to get today's date
+  const today = getTodayDateString();
   const formattedDate = formatDate(today);
   
   // Sort questions to put required ones first

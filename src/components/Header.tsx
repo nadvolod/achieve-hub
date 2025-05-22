@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,15 +8,14 @@ import { useToast } from "@/components/ui/use-toast";
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signOut } = useAuth(); // Changed from logout to signOut
+  const { signOut } = useAuth();
   const { toast } = useToast();
   const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    // Check for saved theme preference
-    const savedTheme = localStorage.getItem("theme");
-    const isDark = savedTheme === "dark" || 
-      (savedTheme === null && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    // Check for saved theme preference, default to light mode
+    const savedTheme = localStorage.getItem("theme") || "light";
+    const isDark = savedTheme === "dark";
     
     setDarkMode(isDark);
     document.documentElement.classList.toggle("dark", isDark);
@@ -32,7 +30,7 @@ const Header = () => {
 
   const handleLogout = async () => {
     try {
-      await signOut(); // Changed from logout to signOut
+      await signOut();
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",

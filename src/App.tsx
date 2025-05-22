@@ -28,30 +28,44 @@ const hideLovableStyle = `
   #lovable-fab {
     display: none !important;
   }
+
+  /* Force light mode as default */
+  html:not(.dark) {
+    color-scheme: light;
+  }
 `;
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <QuestionsProvider>
-          <Toaster />
-          <Sonner />
-          {/* Add style tag to hide the Lovable button */}
-          <style>{hideLovableStyle}</style>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-              <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </QuestionsProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Set default theme to light on app load
+  if (localStorage.getItem("theme") === null) {
+    localStorage.setItem("theme", "light");
+    // Remove dark class if it was added by system preference
+    document.documentElement.classList.remove("dark");
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <QuestionsProvider>
+            <Toaster />
+            <Sonner />
+            {/* Add style tag to hide the Lovable button and set default light theme */}
+            <style>{hideLovableStyle}</style>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </QuestionsProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
