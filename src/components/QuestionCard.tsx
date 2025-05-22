@@ -37,7 +37,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
       <CardHeader className="p-4 pb-2 flex flex-row justify-between items-start">
         <h3 className="text-md font-medium text-gray-800">{question.text}</h3>
         {question.isMandatory && (
-          <Badge variant="outline" className="bg-teal-50 text-teal-600 border-teal-200">
+          <Badge className="bg-teal-100 hover:bg-teal-200 text-teal-700 border-teal-200 font-normal text-xs">
             Required
           </Badge>
         )}

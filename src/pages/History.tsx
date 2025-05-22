@@ -15,6 +15,7 @@ const History = () => {
   const { refreshEntries, entries } = useQuestions();
   const { toast } = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   
   // Create a stable refresh handler with useCallback
   const handleRefresh = useCallback(async (isCritical = false) => {
@@ -26,6 +27,7 @@ const History = () => {
     try {
       await refreshEntries();
       
+      // Only show toast for manual refreshes, not automatic ones
       if (!isCritical) {
         toast({
           title: "Entries refreshed",
@@ -34,11 +36,13 @@ const History = () => {
       }
     } catch (error) {
       console.error("Error refreshing entries:", error);
-      toast({
-        title: "Refresh failed",
-        description: "Could not refresh your entries. Please try again.",
-        variant: "destructive"
-      });
+      if (!isCritical) {
+        toast({
+          title: "Refresh failed",
+          description: "Could not refresh your entries. Please try again.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsRefreshing(false);
     }
@@ -46,20 +50,24 @@ const History = () => {
   
   // Force immediate refresh when component mounts - but only once
   useEffect(() => {
-    console.log("History: Component mounted, performing initial refresh");
-    handleRefresh(true);
+    if (!initialLoadDone) {
+      console.log("History: Component mounted, performing initial refresh");
+      handleRefresh(true);
+      setInitialLoadDone(true);
+    }
     
     // Set up a LESS frequent interval to refresh entries while on this page
+    // Reduced from 30s to 60s to minimize disruption
     const intervalId = setInterval(() => {
       console.log("History: Auto-refreshing entries");
       handleRefresh(true);
-    }, 30000); // Every 30 seconds for less UI flicker
+    }, 60000); // Every 60 seconds for less UI flicker
     
     // Clear the interval when the component unmounts
     return () => clearInterval(intervalId);
-  }, [handleRefresh]);
+  }, [handleRefresh, initialLoadDone]);
   
-  // Also refresh when navigating back to this page
+  // Also refresh when navigating back to this page, but with fixed handling for focus events
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -68,7 +76,7 @@ const History = () => {
       }
     };
     
-    // Properly handle window focus event
+    // Create a proper window focus handler that doesn't expect the event argument
     const handleWindowFocus = () => {
       console.log("History: Window focused, refreshing entries");
       handleRefresh(true);

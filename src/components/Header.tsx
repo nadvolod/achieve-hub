@@ -1,99 +1,125 @@
 
-import React, { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/context/AuthContext";
-import { Home, HistoryIcon, Settings2, LogOut, Menu, Sun, Moon } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { Sun, Moon, History, Settings, Home, LogOut } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 const Header = () => {
-  const location = useLocation();
   const navigate = useNavigate();
-  const { user, signOut } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
-  
-  const isActivePath = (path: string) => {
-    return location.pathname === path;
+  const location = useLocation();
+  const { logout } = useAuth();
+  const { toast } = useToast();
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Check for saved theme preference
+    const savedTheme = localStorage.getItem("theme");
+    const isDark = savedTheme === "dark" || 
+      (savedTheme === null && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    
+    setDarkMode(isDark);
+    document.documentElement.classList.toggle("dark", isDark);
+  }, []);
+
+  const toggleDarkMode = () => {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    document.documentElement.classList.toggle("dark", newDarkMode);
+    localStorage.setItem("theme", newDarkMode ? "dark" : "light");
   };
-  
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/auth");
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out.",
+      });
+      navigate("/auth");
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Logout failed",
+        description: "There was a problem logging you out.",
+        variant: "destructive",
+      });
+    }
   };
-  
+
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-50">
-      <div className="mx-auto px-4 max-w-5xl flex items-center justify-between h-16">
+    <header className="fixed top-0 left-0 right-0 z-30 bg-white dark:bg-navy-500 shadow-sm">
+      <div className="px-4 h-16 flex items-center justify-between max-w-lg mx-auto">
         <div className="flex items-center">
-          <Link to="/" className="font-bold text-xl text-navy-500 flex items-center">
-            {isActivePath('/') ? <Sun className="w-5 h-5 mr-2 text-amber-500" /> : <Moon className="w-5 h-5 mr-2 text-indigo-500" />}
-            <span>Daily Dreamer</span>
-          </Link>
+          {darkMode ? (
+            <Moon className="h-5 w-5 text-yellow-300" />
+          ) : (
+            <Sun className="h-5 w-5 text-yellow-500" />
+          )}
+          <div 
+            className="ml-2 text-lg font-semibold dark:text-white cursor-pointer"
+            onClick={() => navigate("/")}
+          >
+            Daily Dreamer
+          </div>
         </div>
         
-        {user && (
-          <nav className="hidden md:flex items-center space-x-4">
-            <Link to="/">
-              <Button variant={isActivePath('/') ? "default" : "ghost"} size="sm">
-                <Home className="w-4 h-4 mr-1" />
-                Today
-              </Button>
-            </Link>
-            <Link to="/history">
-              <Button variant={isActivePath('/history') ? "default" : "ghost"} size="sm">
-                <HistoryIcon className="w-4 h-4 mr-1" />
-                History
-              </Button>
-            </Link>
-            <Link to="/settings">
-              <Button variant={isActivePath('/settings') ? "default" : "ghost"} size="sm">
-                <Settings2 className="w-4 h-4 mr-1" />
-                Settings
-              </Button>
-            </Link>
-            <Button variant="ghost" size="sm" onClick={handleSignOut}>
-              <LogOut className="w-4 h-4 mr-1" />
-              Sign Out
-            </Button>
-          </nav>
-        )}
-        
-        {user && (
-          <div className="md:hidden">
-            <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <Menu className="w-5 h-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => { navigate('/'); setMenuOpen(false); }}>
-                  <Home className="w-4 h-4 mr-2" />
-                  Today
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { navigate('/history'); setMenuOpen(false); }}>
-                  <HistoryIcon className="w-4 h-4 mr-2" />
-                  History
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { navigate('/settings'); setMenuOpen(false); }}>
-                  <Settings2 className="w-4 h-4 mr-2" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        )}
+        <nav className="flex items-center space-x-1">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate("/")}
+            className={`text-sm ${location.pathname === "/" ? "bg-gray-100 dark:bg-navy-700" : ""}`}
+          >
+            <Home className="h-4 w-4 mr-1" />
+            Home
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate("/history")}
+            className={`text-sm ${location.pathname === "/history" ? "bg-gray-100 dark:bg-navy-700" : ""}`}
+          >
+            <History className="h-4 w-4 mr-1" />
+            History
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate("/settings")}
+            className={`text-sm ${location.pathname === "/settings" ? "bg-gray-100 dark:bg-navy-700" : ""}`}
+          >
+            <Settings className="h-4 w-4 mr-1" />
+            Settings
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleDarkMode}
+            className="rounded-full"
+          >
+            {darkMode ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            className="rounded-full text-red-500"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="sr-only">Log out</span>
+          </Button>
+        </nav>
       </div>
     </header>
   );

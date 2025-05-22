@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
@@ -87,16 +86,34 @@ const Settings = () => {
   const morningMandatoryCount = morningQuestions.filter(q => q.isMandatory && q.isActive).length;
   const eveningMandatoryCount = eveningQuestions.filter(q => q.isMandatory && q.isActive).length;
   
-  // Drag and drop handlers
-  const handleDragStart = (question: Question) => {
+  // Updated drag and drop handlers to fix the functionality
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, question: Question) => {
+    e.dataTransfer.effectAllowed = 'move';
     setDraggedItem(question);
+    
+    // Needed for Firefox
+    e.dataTransfer.setData('text/plain', question.id);
+    
+    // Add a class to show it's being dragged
+    if (e.currentTarget.classList) {
+      e.currentTarget.classList.add('opacity-50');
+    }
+  };
+  
+  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
+    if (e.currentTarget.classList) {
+      e.currentTarget.classList.remove('opacity-50');
+    }
   };
   
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
   };
   
-  const handleDrop = (targetQuestion: Question) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetQuestion: Question) => {
+    e.preventDefault();
+    
     if (!draggedItem || draggedItem.id === targetQuestion.id) return;
     
     // Make sure we're only reordering within the same type
@@ -118,6 +135,20 @@ const Settings = () => {
     // Update the database with the new order
     reorderQuestions(reorderedIds, type);
     setDraggedItem(null);
+  };
+  
+  // Using successful status notifications instead of disruptive toasts for smaller operations
+  const handleStatusNotification = (message: string) => {
+    // Instead of using a toast for every small interaction, just update a status message
+    // This could be implemented with a small notification that auto-dismisses
+    console.log("Status update:", message);
+    
+    // For now we'll keep the toast but make it less disruptive
+    toast({
+      title: "Success",
+      description: message,
+      duration: 2000, // Shorter duration
+    });
   };
   
   return (
@@ -218,11 +249,12 @@ const Settings = () => {
                     key={question.id} 
                     className={`border-b pb-3 last:border-0 last:pb-0 ${
                       draggedItem?.id === question.id ? 'opacity-50' : ''
-                    }`}
-                    draggable
-                    onDragStart={() => handleDragStart(question)}
+                    } cursor-move`}
+                    draggable="true"
+                    onDragStart={(e) => handleDragStart(e, question)}
+                    onDragEnd={handleDragEnd}
                     onDragOver={handleDragOver}
-                    onDrop={() => handleDrop(question)}
+                    onDrop={(e) => handleDrop(e, question)}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex items-start gap-2">
@@ -247,9 +279,10 @@ const Settings = () => {
                         <Checkbox 
                           id={`mandatory-${question.id}`}
                           checked={question.isMandatory}
-                          onCheckedChange={(checked) => 
-                            handleMandatoryToggle(question.id, !!checked)
-                          }
+                          onCheckedChange={(checked) => {
+                            handleMandatoryToggle(question.id, !!checked);
+                            handleStatusNotification(`Question requirement ${checked ? 'enabled' : 'disabled'}`);
+                          }}
                         />
                         <label 
                           htmlFor={`mandatory-${question.id}`}
@@ -269,9 +302,10 @@ const Settings = () => {
                         <Switch 
                           id={`active-${question.id}`}
                           checked={question.isActive}
-                          onCheckedChange={(checked) => 
-                            handleQuestionToggle(question.id, checked)
-                          }
+                          onCheckedChange={(checked) => {
+                            handleQuestionToggle(question.id, checked);
+                            handleStatusNotification(`Question ${checked ? 'activated' : 'deactivated'}`);
+                          }}
                         />
                       </div>
                     </div>
@@ -357,11 +391,12 @@ const Settings = () => {
                     key={question.id} 
                     className={`border-b pb-3 last:border-0 last:pb-0 ${
                       draggedItem?.id === question.id ? 'opacity-50' : ''
-                    }`}
-                    draggable
-                    onDragStart={() => handleDragStart(question)}
+                    } cursor-move`}
+                    draggable="true"
+                    onDragStart={(e) => handleDragStart(e, question)}
+                    onDragEnd={handleDragEnd}
                     onDragOver={handleDragOver}
-                    onDrop={() => handleDrop(question)}
+                    onDrop={(e) => handleDrop(e, question)}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex items-start gap-2">
@@ -386,9 +421,10 @@ const Settings = () => {
                         <Checkbox 
                           id={`mandatory-${question.id}`}
                           checked={question.isMandatory}
-                          onCheckedChange={(checked) => 
-                            handleMandatoryToggle(question.id, !!checked)
-                          }
+                          onCheckedChange={(checked) => {
+                            handleMandatoryToggle(question.id, !!checked);
+                            handleStatusNotification(`Question requirement ${checked ? 'enabled' : 'disabled'}`);
+                          }}
                         />
                         <label 
                           htmlFor={`mandatory-${question.id}`}
@@ -408,9 +444,10 @@ const Settings = () => {
                         <Switch 
                           id={`active-${question.id}`}
                           checked={question.isActive}
-                          onCheckedChange={(checked) => 
-                            handleQuestionToggle(question.id, checked)
-                          }
+                          onCheckedChange={(checked) => {
+                            handleQuestionToggle(question.id, checked);
+                            handleStatusNotification(`Question ${checked ? 'activated' : 'deactivated'}`);
+                          }}
                         />
                       </div>
                     </div>

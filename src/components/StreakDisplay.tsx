@@ -1,27 +1,29 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, Flame, Trophy } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const StreakDisplay: React.FC = () => {
   const { currentStreak, bestStreak, updateStreak } = useAuth();
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Force the streak to update when the component mounts but don't set state
+  // Force the streak to update when the component mounts, but only once
   useEffect(() => {
-    const updateStreakData = async () => {
-      try {
-        console.log("StreakDisplay: Updating streak data");
-        await updateStreak();
-      } catch (error) {
-        console.error("Error updating streak in StreakDisplay:", error);
-      }
-    };
-    
-    updateStreakData();
-    
-    // No need for interval refreshing - we'll update when needed
-  }, [updateStreak]);
+    if (!isInitialized) {
+      const updateStreakData = async () => {
+        try {
+          console.log("StreakDisplay: Updating streak data");
+          await updateStreak();
+          setIsInitialized(true);
+        } catch (error) {
+          console.error("Error updating streak in StreakDisplay:", error);
+        }
+      };
+      
+      updateStreakData();
+    }
+  }, [updateStreak, isInitialized]);
 
   return (
     <div className="mb-6">
