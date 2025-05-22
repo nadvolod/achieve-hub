@@ -13,6 +13,7 @@ export const formatDate = (dateString: string): string => {
 
 // Get today's date as ISO string (YYYY-MM-DD)
 export const getTodayDateString = (): string => {
+  // Create a fresh Date object to ensure we get the current date
   const today = new Date();
   return today.toISOString().split('T')[0];
 };

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -27,7 +26,8 @@ const DailyQuestions: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("morning");
   
-  const today = getTodayDateString();
+  // Make sure we're getting the actual current date, not a cached one
+  const today = new Date().toISOString().split('T')[0];
   const formattedDate = formatDate(today);
   
   // Sort questions to put required ones first
