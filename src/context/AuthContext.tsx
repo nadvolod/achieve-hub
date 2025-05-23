@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -109,7 +110,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // Get current entries to check if user has actually completed something today
       const { data: entries, error: entriesError } = await supabase
-        .from('entries')
+        .from('user_entries')  // Changed from 'entries' to 'user_entries'
         .select('date')
         .eq('user_id', user.id)
         .eq('date', today);
