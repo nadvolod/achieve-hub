@@ -27,11 +27,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
   const { toast } = useToast();
 
+  // Get today's date in local timezone as YYYY-MM-DD
+  const getTodayString = (): string => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Load streak data on auth state change
   const loadStreakData = async (userId: string | undefined) => {
     if (!userId) return;
 
     try {
+      console.log("Loading streak data for user:", userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('current_streak, best_streak, last_active_date')
@@ -44,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (data) {
+        console.log("Loaded streak data:", data);
         setCurrentStreak(data.current_streak || 0);
         setBestStreak(data.best_streak || 0);
         setLastActiveDate(data.last_active_date);
@@ -85,41 +96,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  // Update streak function
+  // Update streak function with improved logic
   const updateStreak = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log("No user found for streak update");
+      return;
+    }
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayString();
+    console.log("Updating streak for date:", today, "Last active:", lastActiveDate);
     
     try {
-      // If the last active date is yesterday, increment streak
-      // If it's today, keep streak the same
-      // If it's neither, reset streak to 1
-      
+      // Get current entries to check if user has actually completed something today
+      const { data: entries, error: entriesError } = await supabase
+        .from('entries')
+        .select('date')
+        .eq('user_id', user.id)
+        .eq('date', today);
+
+      if (entriesError) {
+        console.error("Error checking entries:", entriesError);
+        return;
+      }
+
+      // If no entries for today, don't update streak
+      if (!entries || entries.length === 0) {
+        console.log("No entries found for today, not updating streak");
+        return;
+      }
+
       let newStreak = 1; // Default to 1 for a new streak
       let newBestStreak = bestStreak;
       
       if (lastActiveDate) {
-        const lastDate = new Date(lastActiveDate);
-        const todayDate = new Date(today);
+        const lastDate = new Date(lastActiveDate + 'T00:00:00');
+        const todayDate = new Date(today + 'T00:00:00');
         const yesterday = new Date(todayDate);
         yesterday.setDate(yesterday.getDate() - 1);
         
-        const isToday = lastDate.toISOString().split('T')[0] === today;
-        const isYesterday = lastDate.toISOString().split('T')[0] === yesterday.toISOString().split('T')[0];
+        const isToday = lastActiveDate === today;
+        const isYesterday = lastActiveDate === yesterday.toISOString().split('T')[0];
+        
+        console.log("Date comparison:", {
+          lastActiveDate,
+          today,
+          isToday,
+          isYesterday,
+          currentStreak
+        });
         
         if (isToday) {
           // Already logged today, keep current streak
+          console.log("Already logged today, keeping current streak");
           return;
         } else if (isYesterday) {
           // Logged yesterday, increment streak
           newStreak = currentStreak + 1;
+          console.log("Consecutive day found, incrementing streak to:", newStreak);
+        } else {
+          // Gap in streak, reset to 1
+          newStreak = 1;
+          console.log("Gap in streak detected, resetting to 1");
         }
       }
       
       // Update best streak if needed
       if (newStreak > bestStreak) {
         newBestStreak = newStreak;
+        console.log("New best streak achieved:", newBestStreak);
       }
       
       // Update database
@@ -132,7 +176,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
         .eq('id', user.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating streak in database:", error);
+        throw error;
+      }
+      
+      console.log("Streak updated successfully:", {
+        currentStreak: newStreak,
+        bestStreak: newBestStreak,
+        lastActiveDate: today
+      });
       
       // Update local state
       setCurrentStreak(newStreak);

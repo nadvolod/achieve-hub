@@ -29,6 +29,7 @@ const Settings = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("morning");
   const [draggedItem, setDraggedItem] = useState<Question | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   
   const handleQuestionToggle = (id: string, isActive: boolean) => {
     updateQuestion(id, { isActive });
@@ -86,55 +87,77 @@ const Settings = () => {
   const morningMandatoryCount = morningQuestions.filter(q => q.isMandatory && q.isActive).length;
   const eveningMandatoryCount = eveningQuestions.filter(q => q.isMandatory && q.isActive).length;
   
-  // Updated drag and drop handlers to fix the functionality
+  // Fixed drag and drop handlers
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, question: Question) => {
-    e.dataTransfer.effectAllowed = 'move';
+    console.log("Drag start:", question.id);
     setDraggedItem(question);
-    
-    // Needed for Firefox
+    e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', question.id);
     
-    // Add a class to show it's being dragged
-    if (e.currentTarget.classList) {
-      e.currentTarget.classList.add('opacity-50');
-    }
+    // Add visual feedback
+    e.currentTarget.style.opacity = '0.5';
   };
   
   const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
-    if (e.currentTarget.classList) {
-      e.currentTarget.classList.remove('opacity-50');
+    console.log("Drag end");
+    setDraggedItem(null);
+    setDragOverIndex(null);
+    e.currentTarget.style.opacity = '1';
+  };
+  
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverIndex(index);
+  };
+  
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    // Only clear dragOverIndex if we're leaving the container entirely
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setDragOverIndex(null);
     }
   };
   
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetIndex: number, targetQuestion: Question) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-  
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetQuestion: Question) => {
-    e.preventDefault();
+    console.log("Drop on:", targetQuestion.id, "at index:", targetIndex);
     
-    if (!draggedItem || draggedItem.id === targetQuestion.id) return;
+    if (!draggedItem || draggedItem.id === targetQuestion.id) {
+      setDragOverIndex(null);
+      return;
+    }
     
     // Make sure we're only reordering within the same type
-    if (draggedItem.type !== targetQuestion.type) return;
+    if (draggedItem.type !== targetQuestion.type) {
+      setDragOverIndex(null);
+      return;
+    }
     
     const type = draggedItem.type;
     const filteredQuestions = type === 'morning' ? morningQuestions : eveningQuestions;
     
-    // Create a new array with the updated order
-    const reorderedIds = filteredQuestions.map(q => q.id);
-    const draggedIndex = reorderedIds.indexOf(draggedItem.id);
-    const targetIndex = reorderedIds.indexOf(targetQuestion.id);
+    // Find the current index of the dragged item
+    const draggedIndex = filteredQuestions.findIndex(q => q.id === draggedItem.id);
     
-    // Remove the dragged item
-    reorderedIds.splice(draggedIndex, 1);
+    // Create a new array with the updated order
+    const reorderedQuestions = [...filteredQuestions];
+    
+    // Remove the dragged item from its current position
+    const [removed] = reorderedQuestions.splice(draggedIndex, 1);
+    
     // Insert it at the new position
-    reorderedIds.splice(targetIndex, 0, draggedItem.id);
+    reorderedQuestions.splice(targetIndex, 0, removed);
+    
+    // Extract the new order of IDs
+    const reorderedIds = reorderedQuestions.map(q => q.id);
+    
+    console.log("New order:", reorderedIds);
     
     // Update the database with the new order
     reorderQuestions(reorderedIds, type);
+    
     setDraggedItem(null);
+    setDragOverIndex(null);
   };
   
   // Using successful status notifications instead of disruptive toasts for smaller operations
@@ -150,6 +173,81 @@ const Settings = () => {
       duration: 2000, // Shorter duration
     });
   };
+
+  const renderQuestionList = (questionsList: Question[], type: "morning" | "evening") => (
+    <div className="space-y-4">
+      {questionsList.map((question, index) => (
+        <div 
+          key={question.id} 
+          className={`border-b pb-3 last:border-0 last:pb-0 transition-all duration-200 ${
+            draggedItem?.id === question.id ? 'opacity-50 scale-95' : ''
+          } ${
+            dragOverIndex === index ? 'border-t-2 border-t-teal-400' : ''
+          } cursor-move hover:bg-gray-50 rounded-lg p-2`}
+          draggable="true"
+          onDragStart={(e) => handleDragStart(e, question)}
+          onDragEnd={handleDragEnd}
+          onDragOver={(e) => handleDragOver(e, index)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, index, question)}
+        >
+          <div className="flex justify-between items-start">
+            <div className="flex items-start gap-2">
+              <div className="mt-1 cursor-move hover:text-teal-500 transition-colors">
+                <GripVertical className="h-4 w-4 text-gray-400" />
+              </div>
+              <p className="text-gray-800 pr-4">{question.text}</p>
+            </div>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleRemoveQuestion(question.id)}
+              className="text-gray-400 hover:text-red-500 p-1 h-auto"
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="flex items-center justify-between mt-2 ml-6">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id={`mandatory-${question.id}`}
+                checked={question.isMandatory}
+                onCheckedChange={(checked) => {
+                  handleMandatoryToggle(question.id, !!checked);
+                  handleStatusNotification(`Question requirement ${checked ? 'enabled' : 'disabled'}`);
+                }}
+              />
+              <label 
+                htmlFor={`mandatory-${question.id}`}
+                className="text-sm text-gray-600"
+              >
+                Required
+              </label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <label 
+                htmlFor={`active-${question.id}`}
+                className="text-sm text-gray-600"
+              >
+                {question.isActive ? "Active" : "Inactive"}
+              </label>
+              <Switch 
+                id={`active-${question.id}`}
+                checked={question.isActive}
+                onCheckedChange={(checked) => {
+                  handleQuestionToggle(question.id, checked);
+                  handleStatusNotification(`Question ${checked ? 'activated' : 'deactivated'}`);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
   
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -243,75 +341,7 @@ const Settings = () => {
                 <p className="mt-1 text-xs text-teal-600">Drag and drop questions to reorder them.</p>
               </div>
               
-              <div className="space-y-4">
-                {morningQuestions.map((question) => (
-                  <div 
-                    key={question.id} 
-                    className={`border-b pb-3 last:border-0 last:pb-0 ${
-                      draggedItem?.id === question.id ? 'opacity-50' : ''
-                    } cursor-move`}
-                    draggable="true"
-                    onDragStart={(e) => handleDragStart(e, question)}
-                    onDragEnd={handleDragEnd}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, question)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-start gap-2">
-                        <div className="mt-1 cursor-move">
-                          <GripVertical className="h-4 w-4 text-gray-400" />
-                        </div>
-                        <p className="text-gray-800 pr-4">{question.text}</p>
-                      </div>
-                      
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveQuestion(question.id)}
-                        className="text-gray-400 hover:text-red-500 p-1 h-auto"
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-2 ml-6">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`mandatory-${question.id}`}
-                          checked={question.isMandatory}
-                          onCheckedChange={(checked) => {
-                            handleMandatoryToggle(question.id, !!checked);
-                            handleStatusNotification(`Question requirement ${checked ? 'enabled' : 'disabled'}`);
-                          }}
-                        />
-                        <label 
-                          htmlFor={`mandatory-${question.id}`}
-                          className="text-sm text-gray-600"
-                        >
-                          Required
-                        </label>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <label 
-                          htmlFor={`active-${question.id}`}
-                          className="text-sm text-gray-600"
-                        >
-                          {question.isActive ? "Active" : "Inactive"}
-                        </label>
-                        <Switch 
-                          id={`active-${question.id}`}
-                          checked={question.isActive}
-                          onCheckedChange={(checked) => {
-                            handleQuestionToggle(question.id, checked);
-                            handleStatusNotification(`Question ${checked ? 'activated' : 'deactivated'}`);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {renderQuestionList(morningQuestions, "morning")}
             </div>
           </TabsContent>
           
@@ -385,75 +415,7 @@ const Settings = () => {
                 <p className="mt-1 text-xs text-teal-600">Drag and drop questions to reorder them.</p>
               </div>
               
-              <div className="space-y-4">
-                {eveningQuestions.map((question) => (
-                  <div 
-                    key={question.id} 
-                    className={`border-b pb-3 last:border-0 last:pb-0 ${
-                      draggedItem?.id === question.id ? 'opacity-50' : ''
-                    } cursor-move`}
-                    draggable="true"
-                    onDragStart={(e) => handleDragStart(e, question)}
-                    onDragEnd={handleDragEnd}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, question)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-start gap-2">
-                        <div className="mt-1 cursor-move">
-                          <GripVertical className="h-4 w-4 text-gray-400" />
-                        </div>
-                        <p className="text-gray-800 pr-4">{question.text}</p>
-                      </div>
-                      
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveQuestion(question.id)}
-                        className="text-gray-400 hover:text-red-500 p-1 h-auto"
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-2 ml-6">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`mandatory-${question.id}`}
-                          checked={question.isMandatory}
-                          onCheckedChange={(checked) => {
-                            handleMandatoryToggle(question.id, !!checked);
-                            handleStatusNotification(`Question requirement ${checked ? 'enabled' : 'disabled'}`);
-                          }}
-                        />
-                        <label 
-                          htmlFor={`mandatory-${question.id}`}
-                          className="text-sm text-gray-600"
-                        >
-                          Required
-                        </label>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <label 
-                          htmlFor={`active-${question.id}`}
-                          className="text-sm text-gray-600"
-                        >
-                          {question.isActive ? "Active" : "Inactive"}
-                        </label>
-                        <Switch 
-                          id={`active-${question.id}`}
-                          checked={question.isActive}
-                          onCheckedChange={(checked) => {
-                            handleQuestionToggle(question.id, checked);
-                            handleStatusNotification(`Question ${checked ? 'activated' : 'deactivated'}`);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {renderQuestionList(eveningQuestions, "evening")}
             </div>
           </TabsContent>
         </Tabs>
