@@ -97,6 +97,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
+  // Calculate streak based on all user entries
+  const calculateStreakFromEntries = (entries: any[]): { currentStreak: number; lastActiveDate: string | null } => {
+    if (!entries || entries.length === 0) {
+      return { currentStreak: 0, lastActiveDate: null };
+    }
+
+    // Get unique dates and sort them in descending order (most recent first)
+    const uniqueDates = [...new Set(entries.map(entry => entry.date))].sort((a, b) => b.localeCompare(a));
+    
+    console.log("Calculating streak from dates:", uniqueDates);
+    
+    if (uniqueDates.length === 0) {
+      return { currentStreak: 0, lastActiveDate: null };
+    }
+
+    const today = getTodayString();
+    const mostRecentDate = uniqueDates[0];
+    
+    // Calculate streak starting from the most recent date
+    let streak = 0;
+    let currentDate = new Date(mostRecentDate + 'T00:00:00');
+    
+    for (let i = 0; i < uniqueDates.length; i++) {
+      const entryDate = uniqueDates[i];
+      const expectedDate = currentDate.toISOString().split('T')[0];
+      
+      console.log(`Checking date ${i}: entry=${entryDate}, expected=${expectedDate}`);
+      
+      if (entryDate === expectedDate) {
+        streak++;
+        console.log(`Streak continues: ${streak}`);
+        // Move to previous day
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else {
+        // Gap found, break the streak
+        console.log(`Gap found at ${entryDate}, streak ends at ${streak}`);
+        break;
+      }
+    }
+    
+    return { currentStreak: streak, lastActiveDate: mostRecentDate };
+  };
+
   // Update streak function with improved logic
   const updateStreak = async () => {
     if (!user) {
@@ -104,94 +147,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    const today = getTodayString();
-    console.log("Updating streak for date:", today, "Last active:", lastActiveDate);
-    
     try {
-      // Get current entries to check if user has actually completed something today
+      // Get all user entries to calculate the actual streak
       const { data: entries, error: entriesError } = await supabase
-        .from('user_entries')  // Changed from 'entries' to 'user_entries'
+        .from('user_entries')
         .select('date')
         .eq('user_id', user.id)
-        .eq('date', today);
+        .order('date', { ascending: false });
 
       if (entriesError) {
-        console.error("Error checking entries:", entriesError);
+        console.error("Error fetching entries for streak calculation:", entriesError);
         return;
       }
 
-      // If no entries for today, don't update streak
-      if (!entries || entries.length === 0) {
-        console.log("No entries found for today, not updating streak");
-        return;
-      }
+      console.log("Fetched entries for streak calculation:", entries);
 
-      let newStreak = 1; // Default to 1 for a new streak
-      let newBestStreak = bestStreak;
+      // Calculate the actual streak based on all entries
+      const { currentStreak: calculatedStreak, lastActiveDate: calculatedLastActive } = calculateStreakFromEntries(entries || []);
       
-      if (lastActiveDate) {
-        const lastDate = new Date(lastActiveDate + 'T00:00:00');
-        const todayDate = new Date(today + 'T00:00:00');
-        const yesterday = new Date(todayDate);
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        const isToday = lastActiveDate === today;
-        const isYesterday = lastActiveDate === yesterday.toISOString().split('T')[0];
-        
-        console.log("Date comparison:", {
-          lastActiveDate,
-          today,
-          isToday,
-          isYesterday,
-          currentStreak
-        });
-        
-        if (isToday) {
-          // Already logged today, keep current streak
-          console.log("Already logged today, keeping current streak");
-          return;
-        } else if (isYesterday) {
-          // Logged yesterday, increment streak
-          newStreak = currentStreak + 1;
-          console.log("Consecutive day found, incrementing streak to:", newStreak);
-        } else {
-          // Gap in streak, reset to 1
-          newStreak = 1;
-          console.log("Gap in streak detected, resetting to 1");
-        }
-      }
-      
+      console.log("Calculated streak:", {
+        calculatedStreak,
+        calculatedLastActive,
+        currentStoredStreak: currentStreak
+      });
+
       // Update best streak if needed
-      if (newStreak > bestStreak) {
-        newBestStreak = newStreak;
+      let newBestStreak = bestStreak;
+      if (calculatedStreak > bestStreak) {
+        newBestStreak = calculatedStreak;
         console.log("New best streak achieved:", newBestStreak);
       }
       
-      // Update database
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          current_streak: newStreak,
-          best_streak: newBestStreak,
-          last_active_date: today
-        })
-        .eq('id', user.id);
-      
-      if (error) {
-        console.error("Error updating streak in database:", error);
-        throw error;
+      // Only update database if values have changed
+      if (calculatedStreak !== currentStreak || calculatedLastActive !== lastActiveDate || newBestStreak !== bestStreak) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            current_streak: calculatedStreak,
+            best_streak: newBestStreak,
+            last_active_date: calculatedLastActive
+          })
+          .eq('id', user.id);
+        
+        if (error) {
+          console.error("Error updating streak in database:", error);
+          throw error;
+        }
+        
+        console.log("Streak updated successfully:", {
+          currentStreak: calculatedStreak,
+          bestStreak: newBestStreak,
+          lastActiveDate: calculatedLastActive
+        });
+        
+        // Update local state
+        setCurrentStreak(calculatedStreak);
+        setBestStreak(newBestStreak);
+        setLastActiveDate(calculatedLastActive);
+      } else {
+        console.log("Streak values unchanged, no database update needed");
       }
-      
-      console.log("Streak updated successfully:", {
-        currentStreak: newStreak,
-        bestStreak: newBestStreak,
-        lastActiveDate: today
-      });
-      
-      // Update local state
-      setCurrentStreak(newStreak);
-      setBestStreak(newBestStreak);
-      setLastActiveDate(today);
       
     } catch (error) {
       console.error("Error updating streak:", error);
