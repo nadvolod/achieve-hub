@@ -18,6 +18,7 @@ const StreakDisplay: React.FC = () => {
           setIsInitialized(true);
         } catch (error) {
           console.error("Error updating streak in StreakDisplay:", error);
+          setIsInitialized(true); // Set to true even on error to prevent infinite retries
         }
       };
       
@@ -37,23 +38,23 @@ const StreakDisplay: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
-            <div className="flex items-center gap-2">
-              <Flame className="h-6 w-6 text-orange-500" />
-              <div>
+            <div className="flex items-center gap-2 min-h-[60px]">
+              <Flame className="h-6 w-6 text-orange-500 flex-shrink-0" />
+              <div className="min-w-0">
                 <p className="text-sm text-gray-500">Current</p>
                 <p className="text-2xl font-bold text-navy-700">{currentStreak} days</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Trophy className="h-6 w-6 text-amber-500" />
-              <div>
+            <div className="flex items-center gap-2 min-h-[60px]">
+              <Trophy className="h-6 w-6 text-amber-500 flex-shrink-0" />
+              <div className="min-w-0">
                 <p className="text-sm text-gray-500">Best</p>
                 <p className="text-2xl font-bold text-navy-700">{bestStreak} days</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Target className="h-6 w-6 text-purple-500" />
-              <div>
+            <div className="flex items-center gap-2 min-h-[60px]">
+              <Target className="h-6 w-6 text-purple-500 flex-shrink-0" />
+              <div className="min-w-0">
                 <p className="text-sm text-gray-500">Goals</p>
                 <p className="text-2xl font-bold text-navy-700">{goalsAchieved}</p>
               </div>

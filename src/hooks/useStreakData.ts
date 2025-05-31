@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useStreakCalculation } from './useStreakCalculation';
 
@@ -8,13 +8,15 @@ export const useStreakData = () => {
   const [bestStreak, setBestStreak] = useState(0);
   const [goalsAchieved, setGoalsAchieved] = useState(0);
   const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { calculateStreakFromEntries } = useStreakCalculation();
 
   // Load streak data on auth state change
-  const loadStreakData = async (userId: string | undefined) => {
-    if (!userId) return;
+  const loadStreakData = useCallback(async (userId: string | undefined) => {
+    if (!userId || isLoading) return;
 
     try {
+      setIsLoading(true);
       console.log("Loading streak data for user:", userId);
       const { data, error } = await supabase
         .from('profiles')
@@ -38,11 +40,13 @@ export const useStreakData = () => {
       await loadGoalsAchieved(userId);
     } catch (error) {
       console.error("Failed to load streak data:", error);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [isLoading]);
 
   // Load total goals achieved count
-  const loadGoalsAchieved = async (userId: string) => {
+  const loadGoalsAchieved = useCallback(async (userId: string) => {
     try {
       const { data, error } = await supabase
         .from('weekly_priorities')
@@ -68,16 +72,18 @@ export const useStreakData = () => {
     } catch (error) {
       console.error("Failed to load goals achieved:", error);
     }
-  };
+  }, []);
 
   // Update streak function with improved logic
-  const updateStreak = async (userId: string) => {
-    if (!userId) {
-      console.log("No user found for streak update");
+  const updateStreak = useCallback(async (userId: string) => {
+    if (!userId || isLoading) {
+      console.log("No user found for streak update or already loading");
       return;
     }
 
     try {
+      setIsLoading(true);
+      
       // Get all user entries to calculate the actual streak
       const { data: entries, error: entriesError } = await supabase
         .from('user_entries')
@@ -108,7 +114,7 @@ export const useStreakData = () => {
         console.log("New best streak achieved:", newBestStreak);
       }
       
-      // Only update database if values have changed
+      // Only update database and state if values have actually changed
       if (calculatedStreak !== currentStreak || calculatedLastActive !== lastActiveDate || newBestStreak !== bestStreak) {
         const { error } = await supabase
           .from('profiles')
@@ -130,7 +136,7 @@ export const useStreakData = () => {
           lastActiveDate: calculatedLastActive
         });
         
-        // Update local state
+        // Update local state only if values changed
         setCurrentStreak(calculatedStreak);
         setBestStreak(newBestStreak);
         setLastActiveDate(calculatedLastActive);
@@ -143,21 +149,25 @@ export const useStreakData = () => {
       
     } catch (error) {
       console.error("Error updating streak:", error);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [currentStreak, bestStreak, lastActiveDate, calculateStreakFromEntries, loadGoalsAchieved, isLoading]);
 
-  const resetStreakData = () => {
+  const resetStreakData = useCallback(() => {
     setCurrentStreak(0);
     setBestStreak(0);
     setGoalsAchieved(0);
     setLastActiveDate(null);
-  };
+    setIsLoading(false);
+  }, []);
 
   return {
     currentStreak,
     bestStreak,
     goalsAchieved,
     lastActiveDate,
+    isLoading,
     loadStreakData,
     updateStreak,
     resetStreakData
