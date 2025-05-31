@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useEffect, useContext } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +12,7 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   currentStreak: number;
   bestStreak: number;
+  goalsAchieved: number;
   lastActiveDate: string | null;
   updateStreak: () => Promise<void>;
 };
@@ -25,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
+  const [goalsAchieved, setGoalsAchieved] = useState(0);
   const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -60,8 +61,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setBestStreak(data.best_streak || 0);
         setLastActiveDate(data.last_active_date);
       }
+
+      // Load goals achieved count
+      await loadGoalsAchieved(userId);
     } catch (error) {
       console.error("Failed to load streak data:", error);
+    }
+  };
+
+  // Load total goals achieved count
+  const loadGoalsAchieved = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('weekly_priorities')
+        .select('priority_1_completed, priority_2_completed, priority_3_completed')
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error("Error loading goals achieved:", error);
+        return;
+      }
+
+      if (data) {
+        const totalGoals = data.reduce((total, week) => {
+          return total + 
+            (week.priority_1_completed ? 1 : 0) +
+            (week.priority_2_completed ? 1 : 0) +
+            (week.priority_3_completed ? 1 : 0);
+        }, 0);
+        
+        console.log("Total goals achieved:", totalGoals);
+        setGoalsAchieved(totalGoals);
+      }
+    } catch (error) {
+      console.error("Failed to load goals achieved:", error);
     }
   };
 
@@ -79,6 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Reset streak data when user logs out
           setCurrentStreak(0);
           setBestStreak(0);
+          setGoalsAchieved(0);
           setLastActiveDate(null);
         }
       }
@@ -207,6 +241,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         console.log("Streak values unchanged, no database update needed");
       }
+
+      // Update goals achieved count
+      await loadGoalsAchieved(user.id);
       
     } catch (error) {
       console.error("Error updating streak:", error);
@@ -325,6 +362,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signOut,
       currentStreak,
       bestStreak,
+      goalsAchieved,
       lastActiveDate,
       updateStreak
     }}>

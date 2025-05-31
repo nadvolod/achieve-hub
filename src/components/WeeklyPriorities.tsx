@@ -21,7 +21,7 @@ type WeeklyPriority = {
 };
 
 const WeeklyPriorities: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateStreak } = useAuth();
   const { toast } = useToast();
   const [priorities, setPriorities] = useState<WeeklyPriority | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -121,6 +121,9 @@ const WeeklyPriorities: React.FC = () => {
         // Need to save the record first
         await savePriorities();
       }
+
+      // Update the goals achieved count after completion toggle
+      await updateStreak();
 
       toast({
         title: newCompletionStatus ? "Priority completed!" : "Priority unmarked",
