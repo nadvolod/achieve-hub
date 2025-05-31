@@ -174,6 +174,48 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_priorities: {
+        Row: {
+          created_at: string
+          id: string
+          priority_1: string | null
+          priority_1_completed: boolean | null
+          priority_2: string | null
+          priority_2_completed: boolean | null
+          priority_3: string | null
+          priority_3_completed: boolean | null
+          updated_at: string
+          user_id: string
+          week_start_date: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          priority_1?: string | null
+          priority_1_completed?: boolean | null
+          priority_2?: string | null
+          priority_2_completed?: boolean | null
+          priority_3?: string | null
+          priority_3_completed?: boolean | null
+          updated_at?: string
+          user_id: string
+          week_start_date: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          priority_1?: string | null
+          priority_1_completed?: boolean | null
+          priority_2?: string | null
+          priority_2_completed?: boolean | null
+          priority_3?: string | null
+          priority_3_completed?: boolean | null
+          updated_at?: string
+          user_id?: string
+          week_start_date?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

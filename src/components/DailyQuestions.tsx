@@ -4,6 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sun, Moon, Save } from "lucide-react";
 import QuestionCard from "./QuestionCard";
+import WeeklyPriorities from "./WeeklyPriorities";
 import { useQuestions } from "../context/QuestionsContext";
 import { formatDate, getTodayDateString } from "../utils/questionsUtils";
 import { useAuth } from "../context/AuthContext";
@@ -185,6 +186,9 @@ const DailyQuestions: React.FC = () => {
           Refresh Questions
         </Button>
       </div>
+      
+      {/* Weekly Priorities Section */}
+      <WeeklyPriorities />
       
       <Tabs 
         value={activeTab} 
