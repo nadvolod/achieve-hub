@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sun, Moon, Save } from "lucide-react";
 import QuestionCard from "./QuestionCard";
@@ -102,66 +101,55 @@ const DailyQuestions: React.FC = () => {
     }));
   };
   
-  // Enhanced manual save function that handles all answers at once
   const handleSaveAll = async () => {
     setIsSaving(true);
     
     try {
-      // Save both morning and evening entries if they have content
-      const savePromises = [];
+      // Save both morning and evening entries
+      const activeQuestions = activeTab === "morning" ? sortedMorningQuestions : sortedEveningQuestions;
+      const activeAnswers = activeTab === "morning" ? morningAnswers : eveningAnswers;
       
-      // Check morning answers
-      const morningAnswersToSave = sortedMorningQuestions.map(question => ({
-        questionId: question.id,
-        questionText: question.text,
-        answer: morningAnswers[question.id] || ''
-      })).filter(answer => answer.answer.trim() !== '');
+      // Validate mandatory questions for current tab
+      const mandatoryQuestions = activeQuestions.filter(q => q.isMandatory);
+      const unansweredMandatory = mandatoryQuestions.filter(q => !activeAnswers[q.id]?.trim());
       
-      if (morningAnswersToSave.length > 0) {
-        savePromises.push(saveEntry({
-          date: today,
-          type: 'morning',
-          answers: morningAnswersToSave
-        }));
-      }
-      
-      // Check evening answers
-      const eveningAnswersToSave = sortedEveningQuestions.map(question => ({
-        questionId: question.id,
-        questionText: question.text,
-        answer: eveningAnswers[question.id] || ''
-      })).filter(answer => answer.answer.trim() !== '');
-      
-      if (eveningAnswersToSave.length > 0) {
-        savePromises.push(saveEntry({
-          date: today,
-          type: 'evening',
-          answers: eveningAnswersToSave
-        }));
-      }
-      
-      // Save all entries
-      if (savePromises.length > 0) {
-        await Promise.all(savePromises);
-        
-        // Force update streak immediately
-        console.log("DailyQuestions: Explicitly updating streak after manual save");
-        await updateStreak();
-        
-        // Refresh entries to ensure History page shows the latest data
-        await refreshEntries();
-        
+      if (unansweredMandatory.length > 0) {
         toast({
-          title: "All entries saved",
-          description: "Your reflections have been saved successfully."
-        });
-      } else {
-        toast({
-          title: "Nothing to save",
-          description: "Please answer at least one question before saving.",
+          title: "Missing required answers",
+          description: `Please answer all required ${activeTab} questions before saving.`,
           variant: "destructive"
         });
+        setIsSaving(false);
+        return;
       }
+      
+      // Process entries for current tab
+      const entryAnswers = activeQuestions.map(question => ({
+        questionId: question.id,
+        questionText: question.text,
+        answer: activeAnswers[question.id] || ''
+      }));
+      
+      // Only save if there are answers to save
+      if (entryAnswers.some(answer => answer.answer.trim() !== '')) {
+        await saveEntry({
+          date: today,
+          type: activeTab as 'morning' | 'evening',
+          answers: entryAnswers
+        });
+      }
+      
+      // Force update streak immediately
+      console.log("DailyQuestions: Explicitly updating streak after save");
+      await updateStreak();
+      
+      // Refresh entries to ensure History page shows the latest data
+      await refreshEntries();
+      
+      toast({
+        title: `${activeTab === "morning" ? "Morning" : "Evening"} entries saved`,
+        description: `Your ${activeTab} reflections have been saved successfully.`
+      });
     } catch (error) {
       console.error("Error saving entries:", error);
       toast({
@@ -237,13 +225,12 @@ const DailyQuestions: React.FC = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Floating Manual Save Button */}
+      {/* Floating Save Button */}
       <div className="fixed bottom-8 right-8 z-20">
         <Button
           onClick={handleSaveAll}
           disabled={isSaving}
           className="bg-teal-500 hover:bg-teal-600 text-white rounded-full shadow-lg h-14 w-14 flex items-center justify-center"
-          title="Save all entries manually"
         >
           {isSaving ? 
             <span className="animate-spin">⟳</span> : 
