@@ -27,6 +27,7 @@ const WeeklyPriorities: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   // Get the start of the current week (Monday) - memoize this value
   const weekStartDate = React.useMemo((): string => {
@@ -42,6 +43,8 @@ const WeeklyPriorities: React.FC = () => {
 
     try {
       setIsLoading(true);
+      setHasError(false);
+      
       const { data, error } = await supabase
         .from('weekly_priorities')
         .select('*')
@@ -49,7 +52,23 @@ const WeeklyPriorities: React.FC = () => {
         .eq('week_start_date', weekStartDate)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        setHasError(true);
+        // Set default priorities even on error to prevent jumping
+        setPriorities({
+          id: '',
+          priority_1: '',
+          priority_2: '',
+          priority_3: '',
+          priority_1_completed: false,
+          priority_2_completed: false,
+          priority_3_completed: false,
+          week_start_date: weekStartDate
+        });
+        setHasInitialized(true);
+        return;
+      }
 
       if (data) {
         setPriorities(data);
@@ -69,16 +88,23 @@ const WeeklyPriorities: React.FC = () => {
       setHasInitialized(true);
     } catch (error) {
       console.error('Error fetching weekly priorities:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load weekly priorities",
-        variant: "destructive",
+      setHasError(true);
+      // Set default priorities even on error to prevent jumping
+      setPriorities({
+        id: '',
+        priority_1: '',
+        priority_2: '',
+        priority_3: '',
+        priority_1_completed: false,
+        priority_2_completed: false,
+        priority_3_completed: false,
+        week_start_date: weekStartDate
       });
       setHasInitialized(true);
     } finally {
       setIsLoading(false);
     }
-  }, [user, weekStartDate, hasInitialized, toast]);
+  }, [user, weekStartDate, hasInitialized]);
 
   useEffect(() => {
     if (user && !hasInitialized) {
@@ -117,7 +143,15 @@ const WeeklyPriorities: React.FC = () => {
           })
           .eq('id', priorities.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating completion:', error);
+          // Revert on error
+          setPriorities(prev => prev ? {
+            ...prev,
+            [`priority_${priorityNumber}_completed`]: !newCompletionStatus
+          } : null);
+          return;
+        }
       } else {
         // Need to save the record first
         await savePriorities();
@@ -137,12 +171,6 @@ const WeeklyPriorities: React.FC = () => {
         ...prev,
         [`priority_${priorityNumber}_completed`]: !newCompletionStatus
       } : null);
-      
-      toast({
-        title: "Error",
-        description: "Failed to update completion status",
-        variant: "destructive",
-      });
     }
   }, [priorities, user, updateStreak, toast]);
 
@@ -166,7 +194,15 @@ const WeeklyPriorities: React.FC = () => {
           })
           .eq('id', priorities.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating priorities:', error);
+          toast({
+            title: "Error",
+            description: "Failed to save priorities. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
       } else {
         // Create new record
         const { data, error } = await supabase
@@ -184,7 +220,15 @@ const WeeklyPriorities: React.FC = () => {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating priorities:', error);
+          toast({
+            title: "Error",
+            description: "Failed to save priorities. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
         
         if (data) {
           setPriorities(prev => prev ? { ...prev, id: data.id } : null);
@@ -199,7 +243,7 @@ const WeeklyPriorities: React.FC = () => {
       console.error('Error saving priorities:', error);
       toast({
         title: "Error",
-        description: "Failed to save priorities",
+        description: "Failed to save priorities. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -207,9 +251,10 @@ const WeeklyPriorities: React.FC = () => {
     }
   }, [priorities, user, weekStartDate, toast]);
 
+  // Always render with consistent height to prevent jumping
   if (isLoading) {
     return (
-      <Card className="mb-6 border-l-4 border-l-purple-400 min-h-[200px]">
+      <Card className="mb-6 border-l-4 border-l-purple-400 min-h-[280px]">
         <CardContent className="p-4 flex items-center justify-center">
           <div className="animate-pulse text-purple-600">Loading weekly priorities...</div>
         </CardContent>
@@ -217,10 +262,18 @@ const WeeklyPriorities: React.FC = () => {
     );
   }
 
-  if (!priorities) return null;
+  if (!priorities) {
+    return (
+      <Card className="mb-6 border-l-4 border-l-purple-400 min-h-[280px]">
+        <CardContent className="p-4 flex items-center justify-center">
+          <div className="text-red-600">Failed to load priorities</div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <Card className="mb-6 border-l-4 border-l-purple-400 bg-gradient-to-r from-purple-50 to-indigo-50">
+    <Card className="mb-6 border-l-4 border-l-purple-400 bg-gradient-to-r from-purple-50 to-indigo-50 min-h-[280px]">
       <CardHeader className="p-4 pb-2">
         <div className="flex items-center gap-2">
           <Target className="h-5 w-5 text-purple-600" />
@@ -231,6 +284,11 @@ const WeeklyPriorities: React.FC = () => {
         <p className="text-sm text-purple-600">
           Week of {new Date(weekStartDate).toLocaleDateString()}
         </p>
+        {hasError && (
+          <p className="text-sm text-red-600">
+            Connection issues detected. Working in offline mode.
+          </p>
+        )}
       </CardHeader>
       <CardContent className="p-4 pt-2 space-y-3">
         {[1, 2, 3].map((num) => (

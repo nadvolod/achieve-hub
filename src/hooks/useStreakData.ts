@@ -18,6 +18,7 @@ export const useStreakData = () => {
     try {
       setIsLoading(true);
       console.log("Loading streak data for user:", userId);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('current_streak, best_streak, last_active_date')
@@ -26,6 +27,7 @@ export const useStreakData = () => {
 
       if (error) {
         console.error("Error loading streak data:", error);
+        // Don't throw error, just log it and continue with defaults
         return;
       }
 
@@ -36,10 +38,15 @@ export const useStreakData = () => {
         setLastActiveDate(data.last_active_date);
       }
 
-      // Load goals achieved count
-      await loadGoalsAchieved(userId);
+      // Load goals achieved count - but don't let errors here break the whole flow
+      try {
+        await loadGoalsAchieved(userId);
+      } catch (goalsError) {
+        console.error("Error loading goals, continuing anyway:", goalsError);
+      }
     } catch (error) {
       console.error("Failed to load streak data:", error);
+      // Don't re-throw, just continue with default values
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +81,7 @@ export const useStreakData = () => {
     }
   }, []);
 
-  // Update streak function with improved logic
+  // Update streak function with improved error handling
   const updateStreak = useCallback(async (userId: string) => {
     if (!userId || isLoading) {
       console.log("No user found for streak update or already loading");
@@ -116,39 +123,50 @@ export const useStreakData = () => {
       
       // Only update database and state if values have actually changed
       if (calculatedStreak !== currentStreak || calculatedLastActive !== lastActiveDate || newBestStreak !== bestStreak) {
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            current_streak: calculatedStreak,
-            best_streak: newBestStreak,
-            last_active_date: calculatedLastActive
-          })
-          .eq('id', userId);
-        
-        if (error) {
-          console.error("Error updating streak in database:", error);
-          throw error;
+        try {
+          const { error } = await supabase
+            .from('profiles')
+            .update({
+              current_streak: calculatedStreak,
+              best_streak: newBestStreak,
+              last_active_date: calculatedLastActive
+            })
+            .eq('id', userId);
+          
+          if (error) {
+            console.error("Error updating streak in database:", error);
+            // Don't throw, just log the error
+            return;
+          }
+          
+          console.log("Streak updated successfully:", {
+            currentStreak: calculatedStreak,
+            bestStreak: newBestStreak,
+            lastActiveDate: calculatedLastActive
+          });
+          
+          // Update local state only if database update succeeded
+          setCurrentStreak(calculatedStreak);
+          setBestStreak(newBestStreak);
+          setLastActiveDate(calculatedLastActive);
+        } catch (dbError) {
+          console.error("Database update failed:", dbError);
+          return;
         }
-        
-        console.log("Streak updated successfully:", {
-          currentStreak: calculatedStreak,
-          bestStreak: newBestStreak,
-          lastActiveDate: calculatedLastActive
-        });
-        
-        // Update local state only if values changed
-        setCurrentStreak(calculatedStreak);
-        setBestStreak(newBestStreak);
-        setLastActiveDate(calculatedLastActive);
       } else {
         console.log("Streak values unchanged, no database update needed");
       }
 
-      // Update goals achieved count
-      await loadGoalsAchieved(userId);
+      // Update goals achieved count - but don't let errors here break the flow
+      try {
+        await loadGoalsAchieved(userId);
+      } catch (goalsError) {
+        console.error("Error updating goals, continuing anyway:", goalsError);
+      }
       
     } catch (error) {
       console.error("Error updating streak:", error);
+      // Don't re-throw, just log the error
     } finally {
       setIsLoading(false);
     }
