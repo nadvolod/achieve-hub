@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -26,26 +26,19 @@ const WeeklyPriorities: React.FC = () => {
   const [priorities, setPriorities] = useState<WeeklyPriority | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Get the start of the current week (Monday)
-  const getWeekStartDate = (): string => {
+  // Get the start of the current week (Monday) - memoize this value
+  const weekStartDate = React.useMemo((): string => {
     const today = new Date();
     const day = today.getDay();
     const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
     const monday = new Date(today.setDate(diff));
     return monday.toISOString().split('T')[0];
-  };
+  }, []);
 
-  const weekStartDate = getWeekStartDate();
-
-  useEffect(() => {
-    if (user) {
-      fetchWeeklyPriorities();
-    }
-  }, [user]);
-
-  const fetchWeeklyPriorities = async () => {
-    if (!user) return;
+  const fetchWeeklyPriorities = useCallback(async () => {
+    if (!user || hasInitialized) return;
 
     try {
       setIsLoading(true);
@@ -73,6 +66,7 @@ const WeeklyPriorities: React.FC = () => {
           week_start_date: weekStartDate
         });
       }
+      setHasInitialized(true);
     } catch (error) {
       console.error('Error fetching weekly priorities:', error);
       toast({
@@ -80,21 +74,28 @@ const WeeklyPriorities: React.FC = () => {
         description: "Failed to load weekly priorities",
         variant: "destructive",
       });
+      setHasInitialized(true);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, weekStartDate, hasInitialized, toast]);
 
-  const handlePriorityChange = (priorityNumber: 1 | 2 | 3, value: string) => {
+  useEffect(() => {
+    if (user && !hasInitialized) {
+      fetchWeeklyPriorities();
+    }
+  }, [user, fetchWeeklyPriorities, hasInitialized]);
+
+  const handlePriorityChange = useCallback((priorityNumber: 1 | 2 | 3, value: string) => {
     if (!priorities) return;
     
     setPriorities(prev => prev ? {
       ...prev,
       [`priority_${priorityNumber}`]: value
     } : null);
-  };
+  }, [priorities]);
 
-  const handleCompletionToggle = async (priorityNumber: 1 | 2 | 3) => {
+  const handleCompletionToggle = useCallback(async (priorityNumber: 1 | 2 | 3) => {
     if (!priorities || !user) return;
 
     const newCompletionStatus = !priorities[`priority_${priorityNumber}_completed`];
@@ -143,9 +144,9 @@ const WeeklyPriorities: React.FC = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [priorities, user, updateStreak, toast]);
 
-  const savePriorities = async () => {
+  const savePriorities = useCallback(async () => {
     if (!priorities || !user) return;
 
     setIsSaving(true);
@@ -204,13 +205,13 @@ const WeeklyPriorities: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  };
+  }, [priorities, user, weekStartDate, toast]);
 
   if (isLoading) {
     return (
-      <Card className="mb-6 border-l-4 border-l-purple-400">
-        <CardContent className="p-4">
-          <div className="animate-pulse">Loading weekly priorities...</div>
+      <Card className="mb-6 border-l-4 border-l-purple-400 min-h-[200px]">
+        <CardContent className="p-4 flex items-center justify-center">
+          <div className="animate-pulse text-purple-600">Loading weekly priorities...</div>
         </CardContent>
       </Card>
     );
