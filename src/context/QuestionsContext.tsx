@@ -238,7 +238,19 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       .filter(q => q.type === 'evening' && q.isActive)
       .sort((a, b) => a.position - b.position);
     
-    setTodaysMorningQuestions(morningQuestions);
+    // For morning questions: always include mandatory ones, then randomly select 2 non-mandatory ones
+    const mandatoryMorningQuestions = morningQuestions.filter(q => q.isMandatory);
+    const nonMandatoryMorningQuestions = morningQuestions.filter(q => !q.isMandatory);
+    
+    // Randomly select 2 non-mandatory questions
+    const shuffledNonMandatory = [...nonMandatoryMorningQuestions].sort(() => 0.5 - Math.random());
+    const selectedNonMandatory = shuffledNonMandatory.slice(0, 2);
+    
+    // Combine mandatory and selected non-mandatory questions
+    const finalMorningQuestions = [...mandatoryMorningQuestions, ...selectedNonMandatory]
+      .sort((a, b) => a.position - b.position);
+    
+    setTodaysMorningQuestions(finalMorningQuestions);
     setTodaysEveningQuestions(eveningQuestions);
   };
 
