@@ -37,7 +37,7 @@ const StreakDisplay: React.FC = () => {
             <CardTitle className="text-lg font-medium text-navy-700 flex items-center gap-2">
               Your Streak
               {hasConnectionError && (
-                <WifiOff className="h-4 w-4 text-amber-500" title="Connection issues detected" />
+                <WifiOff className="h-4 w-4 text-amber-500" />
               )}
             </CardTitle>
             <CardDescription>
