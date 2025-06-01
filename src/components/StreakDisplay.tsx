@@ -1,12 +1,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, Flame, Trophy, Target } from 'lucide-react';
+import { Check, Flame, Trophy, Target, WifiOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const StreakDisplay: React.FC = () => {
   const { currentStreak, bestStreak, goalsAchieved, updateStreak } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
+  const [hasConnectionError, setHasConnectionError] = useState(false);
 
   // Force the streak to update when the component mounts, but only once
   useEffect(() => {
@@ -16,9 +17,11 @@ const StreakDisplay: React.FC = () => {
           console.log("StreakDisplay: Updating streak data");
           await updateStreak();
           setIsInitialized(true);
+          setHasConnectionError(false);
         } catch (error) {
           console.error("Error updating streak in StreakDisplay:", error);
-          setIsInitialized(true); // Set to true even on error to prevent infinite retries
+          setIsInitialized(true);
+          setHasConnectionError(true);
         }
       };
       
@@ -28,11 +31,18 @@ const StreakDisplay: React.FC = () => {
 
   return (
     <div className="mb-6">
-      <Card className="bg-white shadow">
+      <Card className="bg-white shadow min-h-[140px]">
         <CardHeader className="pb-2 flex flex-row justify-between items-center">
           <div>
-            <CardTitle className="text-lg font-medium text-navy-700">Your Streak</CardTitle>
-            <CardDescription>Keep the momentum going!</CardDescription>
+            <CardTitle className="text-lg font-medium text-navy-700 flex items-center gap-2">
+              Your Streak
+              {hasConnectionError && (
+                <WifiOff className="h-4 w-4 text-amber-500" title="Connection issues detected" />
+              )}
+            </CardTitle>
+            <CardDescription>
+              {hasConnectionError ? "Working in offline mode" : "Keep the momentum going!"}
+            </CardDescription>
           </div>
           <Check className="h-5 w-5 text-teal-500" />
         </CardHeader>

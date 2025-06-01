@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useStreakCalculation } from './useStreakCalculation';
 
@@ -9,14 +9,21 @@ export const useStreakData = () => {
   const [goalsAchieved, setGoalsAchieved] = useState(0);
   const [lastActiveDate, setLastActiveDate] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const { calculateStreakFromEntries } = useStreakCalculation();
+  
+  // Add refs to prevent multiple simultaneous calls
+  const loadingRef = useRef(false);
+  const updateRef = useRef(false);
 
   // Load streak data on auth state change
   const loadStreakData = useCallback(async (userId: string | undefined) => {
-    if (!userId || isLoading) return;
+    if (!userId || loadingRef.current) return;
 
     try {
+      loadingRef.current = true;
       setIsLoading(true);
+      setHasError(false);
       console.log("Loading streak data for user:", userId);
       
       const { data, error } = await supabase
@@ -27,7 +34,11 @@ export const useStreakData = () => {
 
       if (error) {
         console.error("Error loading streak data:", error);
-        // Don't throw error, just log it and continue with defaults
+        setHasError(true);
+        // Set default values and don't retry
+        setCurrentStreak(0);
+        setBestStreak(0);
+        setLastActiveDate(null);
         return;
       }
 
@@ -36,6 +47,7 @@ export const useStreakData = () => {
         setCurrentStreak(data.current_streak || 0);
         setBestStreak(data.best_streak || 0);
         setLastActiveDate(data.last_active_date);
+        setHasError(false);
       }
 
       // Load goals achieved count - but don't let errors here break the whole flow
@@ -46,11 +58,17 @@ export const useStreakData = () => {
       }
     } catch (error) {
       console.error("Failed to load streak data:", error);
-      // Don't re-throw, just continue with default values
+      setHasError(true);
+      // Set default values to prevent layout jumping
+      setCurrentStreak(0);
+      setBestStreak(0);
+      setLastActiveDate(null);
+      setGoalsAchieved(0);
     } finally {
       setIsLoading(false);
+      loadingRef.current = false;
     }
-  }, [isLoading]);
+  }, []);
 
   // Load total goals achieved count
   const loadGoalsAchieved = useCallback(async (userId: string) => {
@@ -78,18 +96,19 @@ export const useStreakData = () => {
       }
     } catch (error) {
       console.error("Failed to load goals achieved:", error);
+      // Don't throw, just continue with current value
     }
   }, []);
 
   // Update streak function with improved error handling
   const updateStreak = useCallback(async (userId: string) => {
-    if (!userId || isLoading) {
-      console.log("No user found for streak update or already loading");
+    if (!userId || updateRef.current) {
+      console.log("No user found for streak update or already updating");
       return;
     }
 
     try {
-      setIsLoading(true);
+      updateRef.current = true;
       
       // Get all user entries to calculate the actual streak
       const { data: entries, error: entriesError } = await supabase
@@ -135,7 +154,6 @@ export const useStreakData = () => {
           
           if (error) {
             console.error("Error updating streak in database:", error);
-            // Don't throw, just log the error
             return;
           }
           
@@ -149,8 +167,10 @@ export const useStreakData = () => {
           setCurrentStreak(calculatedStreak);
           setBestStreak(newBestStreak);
           setLastActiveDate(calculatedLastActive);
+          setHasError(false);
         } catch (dbError) {
           console.error("Database update failed:", dbError);
+          setHasError(true);
           return;
         }
       } else {
@@ -166,11 +186,11 @@ export const useStreakData = () => {
       
     } catch (error) {
       console.error("Error updating streak:", error);
-      // Don't re-throw, just log the error
+      setHasError(true);
     } finally {
-      setIsLoading(false);
+      updateRef.current = false;
     }
-  }, [currentStreak, bestStreak, lastActiveDate, calculateStreakFromEntries, loadGoalsAchieved, isLoading]);
+  }, [currentStreak, bestStreak, lastActiveDate, calculateStreakFromEntries, loadGoalsAchieved]);
 
   const resetStreakData = useCallback(() => {
     setCurrentStreak(0);
@@ -178,6 +198,9 @@ export const useStreakData = () => {
     setGoalsAchieved(0);
     setLastActiveDate(null);
     setIsLoading(false);
+    setHasError(false);
+    loadingRef.current = false;
+    updateRef.current = false;
   }, []);
 
   return {
@@ -186,6 +209,7 @@ export const useStreakData = () => {
     goalsAchieved,
     lastActiveDate,
     isLoading,
+    hasError,
     loadStreakData,
     updateStreak,
     resetStreakData

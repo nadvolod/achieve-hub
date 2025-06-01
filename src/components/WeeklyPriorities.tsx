@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "../context/AuthContext";
-import { Save, Target } from "lucide-react";
+import { Save, Target, Wifi, WifiOff } from "lucide-react";
 
 type WeeklyPriority = {
   id: string;
@@ -28,6 +28,10 @@ const WeeklyPriorities: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  
+  // Add ref to prevent multiple simultaneous fetch calls
+  const fetchingRef = useRef(false);
 
   // Get the start of the current week (Monday) - memoize this value
   const weekStartDate = React.useMemo((): string => {
@@ -39,11 +43,13 @@ const WeeklyPriorities: React.FC = () => {
   }, []);
 
   const fetchWeeklyPriorities = useCallback(async () => {
-    if (!user || hasInitialized) return;
+    if (!user || hasInitialized || fetchingRef.current) return;
 
     try {
+      fetchingRef.current = true;
       setIsLoading(true);
       setHasError(false);
+      setIsOffline(false);
       
       const { data, error } = await supabase
         .from('weekly_priorities')
@@ -55,7 +61,8 @@ const WeeklyPriorities: React.FC = () => {
       if (error) {
         console.error('Supabase error:', error);
         setHasError(true);
-        // Set default priorities even on error to prevent jumping
+        setIsOffline(true);
+        // Set default priorities to prevent jumping and stop retrying
         setPriorities({
           id: '',
           priority_1: '',
@@ -86,10 +93,13 @@ const WeeklyPriorities: React.FC = () => {
         });
       }
       setHasInitialized(true);
+      setHasError(false);
+      setIsOffline(false);
     } catch (error) {
       console.error('Error fetching weekly priorities:', error);
       setHasError(true);
-      // Set default priorities even on error to prevent jumping
+      setIsOffline(true);
+      // Set default priorities to prevent jumping and stop retrying
       setPriorities({
         id: '',
         priority_1: '',
@@ -103,11 +113,12 @@ const WeeklyPriorities: React.FC = () => {
       setHasInitialized(true);
     } finally {
       setIsLoading(false);
+      fetchingRef.current = false;
     }
   }, [user, weekStartDate, hasInitialized]);
 
   useEffect(() => {
-    if (user && !hasInitialized) {
+    if (user && !hasInitialized && !fetchingRef.current) {
       fetchWeeklyPriorities();
     }
   }, [user, fetchWeeklyPriorities, hasInitialized]);
@@ -122,7 +133,7 @@ const WeeklyPriorities: React.FC = () => {
   }, [priorities]);
 
   const handleCompletionToggle = useCallback(async (priorityNumber: 1 | 2 | 3) => {
-    if (!priorities || !user) return;
+    if (!priorities || !user || isOffline) return;
 
     const newCompletionStatus = !priorities[`priority_${priorityNumber}_completed`];
     
@@ -150,6 +161,7 @@ const WeeklyPriorities: React.FC = () => {
             ...prev,
             [`priority_${priorityNumber}_completed`]: !newCompletionStatus
           } : null);
+          setIsOffline(true);
           return;
         }
       } else {
@@ -164,18 +176,21 @@ const WeeklyPriorities: React.FC = () => {
         title: newCompletionStatus ? "Priority completed!" : "Priority unmarked",
         description: `Priority ${priorityNumber} ${newCompletionStatus ? 'completed' : 'unmarked'}`,
       });
+      
+      setIsOffline(false);
     } catch (error) {
       console.error('Error updating completion status:', error);
+      setIsOffline(true);
       // Revert the local state on error
       setPriorities(prev => prev ? {
         ...prev,
         [`priority_${priorityNumber}_completed`]: !newCompletionStatus
       } : null);
     }
-  }, [priorities, user, updateStreak, toast]);
+  }, [priorities, user, updateStreak, toast, isOffline]);
 
   const savePriorities = useCallback(async () => {
-    if (!priorities || !user) return;
+    if (!priorities || !user || isOffline) return;
 
     setIsSaving(true);
     try {
@@ -196,9 +211,10 @@ const WeeklyPriorities: React.FC = () => {
 
         if (error) {
           console.error('Error updating priorities:', error);
+          setIsOffline(true);
           toast({
-            title: "Error",
-            description: "Failed to save priorities. Please try again.",
+            title: "Connection Error",
+            description: "Working in offline mode. Changes will be saved when connection is restored.",
             variant: "destructive",
           });
           return;
@@ -222,9 +238,10 @@ const WeeklyPriorities: React.FC = () => {
 
         if (error) {
           console.error('Error creating priorities:', error);
+          setIsOffline(true);
           toast({
-            title: "Error",
-            description: "Failed to save priorities. Please try again.",
+            title: "Connection Error",
+            description: "Working in offline mode. Changes will be saved when connection is restored.",
             variant: "destructive",
           });
           return;
@@ -235,26 +252,28 @@ const WeeklyPriorities: React.FC = () => {
         }
       }
 
+      setIsOffline(false);
       toast({
         title: "Priorities saved",
         description: "Your weekly priorities have been saved successfully.",
       });
     } catch (error) {
       console.error('Error saving priorities:', error);
+      setIsOffline(true);
       toast({
-        title: "Error",
-        description: "Failed to save priorities. Please try again.",
+        title: "Connection Error",
+        description: "Working in offline mode. Changes will be saved when connection is restored.",
         variant: "destructive",
       });
     } finally {
       setIsSaving(false);
     }
-  }, [priorities, user, weekStartDate, toast]);
+  }, [priorities, user, weekStartDate, toast, isOffline]);
 
   // Always render with consistent height to prevent jumping
   if (isLoading) {
     return (
-      <Card className="mb-6 border-l-4 border-l-purple-400 min-h-[280px]">
+      <Card className="mb-6 border-l-4 border-l-purple-400 min-h-[320px]">
         <CardContent className="p-4 flex items-center justify-center">
           <div className="animate-pulse text-purple-600">Loading weekly priorities...</div>
         </CardContent>
@@ -264,31 +283,37 @@ const WeeklyPriorities: React.FC = () => {
 
   if (!priorities) {
     return (
-      <Card className="mb-6 border-l-4 border-l-purple-400 min-h-[280px]">
+      <Card className="mb-6 border-l-4 border-l-purple-400 min-h-[320px]">
         <CardContent className="p-4 flex items-center justify-center">
-          <div className="text-red-600">Failed to load priorities</div>
+          <div className="text-red-600 flex items-center gap-2">
+            <WifiOff className="h-4 w-4" />
+            Working in offline mode
+          </div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="mb-6 border-l-4 border-l-purple-400 bg-gradient-to-r from-purple-50 to-indigo-50 min-h-[280px]">
+    <Card className="mb-6 border-l-4 border-l-purple-400 bg-gradient-to-r from-purple-50 to-indigo-50 min-h-[320px]">
       <CardHeader className="p-4 pb-2">
-        <div className="flex items-center gap-2">
-          <Target className="h-5 w-5 text-purple-600" />
-          <h3 className="text-lg font-semibold text-purple-800">
-            What are your top 3 SMART priorities for the week?
-          </h3>
+        <div className="flex items-center gap-2 justify-between">
+          <div className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-purple-600" />
+            <h3 className="text-lg font-semibold text-purple-800">
+              What are your top 3 SMART priorities for the week?
+            </h3>
+          </div>
+          {isOffline && (
+            <div className="flex items-center gap-1 text-sm text-amber-600">
+              <WifiOff className="h-4 w-4" />
+              <span>Offline</span>
+            </div>
+          )}
         </div>
         <p className="text-sm text-purple-600">
           Week of {new Date(weekStartDate).toLocaleDateString()}
         </p>
-        {hasError && (
-          <p className="text-sm text-red-600">
-            Connection issues detected. Working in offline mode.
-          </p>
-        )}
       </CardHeader>
       <CardContent className="p-4 pt-2 space-y-3">
         {[1, 2, 3].map((num) => (
@@ -298,12 +323,14 @@ const WeeklyPriorities: React.FC = () => {
               checked={priorities[`priority_${num}_completed` as keyof WeeklyPriority] as boolean}
               onCheckedChange={() => handleCompletionToggle(num as 1 | 2 | 3)}
               className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+              disabled={isOffline}
             />
             <Input
               placeholder={`Priority ${num}...`}
               value={priorities[`priority_${num}` as keyof WeeklyPriority] as string || ''}
               onChange={(e) => handlePriorityChange(num as 1 | 2 | 3, e.target.value)}
               className={`flex-1 ${priorities[`priority_${num}_completed` as keyof WeeklyPriority] ? 'line-through text-gray-500' : ''}`}
+              disabled={isOffline}
             />
           </div>
         ))}
@@ -311,16 +338,20 @@ const WeeklyPriorities: React.FC = () => {
         <div className="pt-2">
           <Button
             onClick={savePriorities}
-            disabled={isSaving}
+            disabled={isSaving || isOffline}
             size="sm"
-            className="bg-purple-600 hover:bg-purple-700 text-white"
+            className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
           >
             {isSaving ? (
               <span className="animate-spin">⟳</span>
+            ) : isOffline ? (
+              <WifiOff className="h-4 w-4" />
             ) : (
               <Save className="h-4 w-4" />
             )}
-            <span className="ml-2">{isSaving ? 'Saving...' : 'Save Priorities'}</span>
+            <span className="ml-2">
+              {isSaving ? 'Saving...' : isOffline ? 'Offline Mode' : 'Save Priorities'}
+            </span>
           </Button>
         </div>
       </CardContent>
