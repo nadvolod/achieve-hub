@@ -18,8 +18,9 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
   
+  // If no user, redirect to landing page instead of auth
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/landing" replace />;
   }
   
   return <>{children}</>;
