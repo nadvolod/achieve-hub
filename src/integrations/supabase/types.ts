@@ -180,10 +180,13 @@ export type Database = {
           id: string
           priority_1: string | null
           priority_1_completed: boolean | null
+          priority_1_progress: number | null
           priority_2: string | null
           priority_2_completed: boolean | null
+          priority_2_progress: number | null
           priority_3: string | null
           priority_3_completed: boolean | null
+          priority_3_progress: number | null
           updated_at: string
           user_id: string
           week_start_date: string
@@ -193,10 +196,13 @@ export type Database = {
           id?: string
           priority_1?: string | null
           priority_1_completed?: boolean | null
+          priority_1_progress?: number | null
           priority_2?: string | null
           priority_2_completed?: boolean | null
+          priority_2_progress?: number | null
           priority_3?: string | null
           priority_3_completed?: boolean | null
+          priority_3_progress?: number | null
           updated_at?: string
           user_id: string
           week_start_date: string
@@ -206,10 +212,13 @@ export type Database = {
           id?: string
           priority_1?: string | null
           priority_1_completed?: boolean | null
+          priority_1_progress?: number | null
           priority_2?: string | null
           priority_2_completed?: boolean | null
+          priority_2_progress?: number | null
           priority_3?: string | null
           priority_3_completed?: boolean | null
+          priority_3_progress?: number | null
           updated_at?: string
           user_id?: string
           week_start_date?: string
