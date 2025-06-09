@@ -1,12 +1,14 @@
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, Calendar, Target, TrendingUp, Clock, Users } from "lucide-react";
 
 const Landing = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const features = [
     {
@@ -45,13 +47,24 @@ const Landing = () => {
       <header className="container mx-auto px-4 py-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold text-navy-500">Daily Dreamer</h1>
-          <Button 
-            variant="outline" 
-            onClick={() => navigate("/auth")}
-            className="border-teal-500 text-teal-700 hover:bg-teal-50"
-          >
-            Sign In
-          </Button>
+          <div className="flex gap-3">
+            {user ? (
+              <Button 
+                onClick={() => navigate("/")}
+                className="bg-teal-500 hover:bg-teal-600 text-white"
+              >
+                Go to My App
+              </Button>
+            ) : (
+              <Button 
+                variant="outline" 
+                onClick={() => navigate("/auth")}
+                className="border-teal-500 text-teal-700 hover:bg-teal-50"
+              >
+                Sign In
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -74,12 +87,14 @@ const Landing = () => {
           </div>
           <Button 
             size="lg" 
-            onClick={() => navigate("/auth")}
+            onClick={() => navigate(user ? "/" : "/auth")}
             className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-4 text-lg font-semibold"
           >
-            Start Your Transformation Today
+            {user ? "Go to My Daily Dreamer" : "Start Your Transformation Today"}
           </Button>
-          <p className="text-sm text-gray-500 mt-4">Join thousands who've already taken control</p>
+          <p className="text-sm text-gray-500 mt-4">
+            {user ? "Continue your journey" : "Join thousands who've already taken control"}
+          </p>
         </div>
       </section>
 
@@ -226,10 +241,10 @@ const Landing = () => {
             </div>
             <Button 
               size="lg" 
-              onClick={() => navigate("/auth")}
+              onClick={() => navigate(user ? "/" : "/auth")}
               className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 text-lg font-semibold"
             >
-              Don't Wait Another Day - Start Now
+              {user ? "Continue Your Journey" : "Don't Wait Another Day - Start Now"}
             </Button>
           </div>
         </div>
@@ -248,13 +263,13 @@ const Landing = () => {
             </p>
             <Button 
               size="lg" 
-              onClick={() => navigate("/auth")}
+              onClick={() => navigate(user ? "/" : "/auth")}
               className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-4 text-lg font-semibold"
             >
-              Get Started Free
+              {user ? "Open Daily Dreamer" : "Get Started Free"}
             </Button>
             <p className="text-sm text-gray-300 mt-4">
-              No credit card required • Start transforming your life in under 2 minutes
+              {user ? "Continue building your better life" : "No credit card required • Start transforming your life in under 2 minutes"}
             </p>
           </div>
         </div>

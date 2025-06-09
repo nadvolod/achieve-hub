@@ -52,7 +52,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
-      <Route path="/landing" element={user ? <Navigate to="/" replace /> : <Landing />} />
+      <Route path="/landing" element={<Landing />} />
       <Route 
         path="/" 
         element={
