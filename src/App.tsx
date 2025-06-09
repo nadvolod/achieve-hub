@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
+import Landing from "./pages/Landing";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
