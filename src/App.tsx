@@ -80,17 +80,17 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
-          <QuestionsProvider>
-            <Toaster />
-            <Sonner />
-            {/* Add style tag to hide the Lovable button and set default light theme */}
-            <style>{hideLovableStyle}</style>
-            <BrowserRouter>
+        <Toaster />
+        <Sonner />
+        {/* Add style tag to hide the Lovable button and set default light theme */}
+        <style>{hideLovableStyle}</style>
+        <BrowserRouter>
+          <AuthProvider>
+            <QuestionsProvider>
               <AppRoutes />
-            </BrowserRouter>
-          </QuestionsProvider>
-        </AuthProvider>
+            </QuestionsProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );
