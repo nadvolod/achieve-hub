@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "../context/AuthContext";
 import { Save, Target, Wifi, WifiOff } from "lucide-react";
+import PriorityProgress from "./PriorityProgress";
 
 type WeeklyPriority = {
   id: string;
@@ -17,6 +18,9 @@ type WeeklyPriority = {
   priority_1_completed: boolean;
   priority_2_completed: boolean;
   priority_3_completed: boolean;
+  priority_1_progress: number;
+  priority_2_progress: number;
+  priority_3_progress: number;
   week_start_date: string;
 };
 
@@ -71,6 +75,9 @@ const WeeklyPriorities: React.FC = () => {
           priority_1_completed: false,
           priority_2_completed: false,
           priority_3_completed: false,
+          priority_1_progress: 0,
+          priority_2_progress: 0,
+          priority_3_progress: 0,
           week_start_date: weekStartDate
         });
         setHasInitialized(true);
@@ -78,7 +85,13 @@ const WeeklyPriorities: React.FC = () => {
       }
 
       if (data) {
-        setPriorities(data);
+        // Ensure progress fields exist with default values
+        setPriorities({
+          ...data,
+          priority_1_progress: data.priority_1_progress || 0,
+          priority_2_progress: data.priority_2_progress || 0,
+          priority_3_progress: data.priority_3_progress || 0,
+        });
       } else {
         // Create empty priorities for the week
         setPriorities({
@@ -89,6 +102,9 @@ const WeeklyPriorities: React.FC = () => {
           priority_1_completed: false,
           priority_2_completed: false,
           priority_3_completed: false,
+          priority_1_progress: 0,
+          priority_2_progress: 0,
+          priority_3_progress: 0,
           week_start_date: weekStartDate
         });
       }
@@ -108,6 +124,9 @@ const WeeklyPriorities: React.FC = () => {
         priority_1_completed: false,
         priority_2_completed: false,
         priority_3_completed: false,
+        priority_1_progress: 0,
+        priority_2_progress: 0,
+        priority_3_progress: 0,
         week_start_date: weekStartDate
       });
       setHasInitialized(true);
@@ -129,6 +148,15 @@ const WeeklyPriorities: React.FC = () => {
     setPriorities(prev => prev ? {
       ...prev,
       [`priority_${priorityNumber}`]: value
+    } : null);
+  }, [priorities]);
+
+  const handleProgressChange = useCallback((priorityNumber: 1 | 2 | 3, progress: number) => {
+    if (!priorities) return;
+    
+    setPriorities(prev => prev ? {
+      ...prev,
+      [`priority_${priorityNumber}_progress`]: progress
     } : null);
   }, [priorities]);
 
@@ -205,6 +233,9 @@ const WeeklyPriorities: React.FC = () => {
             priority_1_completed: priorities.priority_1_completed,
             priority_2_completed: priorities.priority_2_completed,
             priority_3_completed: priorities.priority_3_completed,
+            priority_1_progress: priorities.priority_1_progress,
+            priority_2_progress: priorities.priority_2_progress,
+            priority_3_progress: priorities.priority_3_progress,
             updated_at: new Date().toISOString()
           })
           .eq('id', priorities.id);
@@ -231,7 +262,10 @@ const WeeklyPriorities: React.FC = () => {
             priority_3: priorities.priority_3,
             priority_1_completed: priorities.priority_1_completed,
             priority_2_completed: priorities.priority_2_completed,
-            priority_3_completed: priorities.priority_3_completed
+            priority_3_completed: priorities.priority_3_completed,
+            priority_1_progress: priorities.priority_1_progress,
+            priority_2_progress: priorities.priority_2_progress,
+            priority_3_progress: priorities.priority_3_progress
           })
           .select()
           .single();
@@ -315,23 +349,34 @@ const WeeklyPriorities: React.FC = () => {
           Week of {new Date(weekStartDate).toLocaleDateString()}
         </p>
       </CardHeader>
-      <CardContent className="p-4 pt-2 space-y-3">
+      <CardContent className="p-4 pt-2 space-y-4">
         {[1, 2, 3].map((num) => (
-          <div key={num} className="flex items-center gap-3">
-            <Checkbox
-              id={`priority-${num}`}
-              checked={priorities[`priority_${num}_completed` as keyof WeeklyPriority] as boolean}
-              onCheckedChange={() => handleCompletionToggle(num as 1 | 2 | 3)}
-              className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
-              disabled={isOffline}
-            />
-            <Input
-              placeholder={`Priority ${num}...`}
-              value={priorities[`priority_${num}` as keyof WeeklyPriority] as string || ''}
-              onChange={(e) => handlePriorityChange(num as 1 | 2 | 3, e.target.value)}
-              className={`flex-1 ${priorities[`priority_${num}_completed` as keyof WeeklyPriority] ? 'line-through text-gray-500' : ''}`}
-              disabled={isOffline}
-            />
+          <div key={num} className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id={`priority-${num}`}
+                checked={priorities[`priority_${num}_completed` as keyof WeeklyPriority] as boolean}
+                onCheckedChange={() => handleCompletionToggle(num as 1 | 2 | 3)}
+                className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                disabled={isOffline}
+              />
+              <Input
+                placeholder={`Priority ${num}...`}
+                value={priorities[`priority_${num}` as keyof WeeklyPriority] as string || ''}
+                onChange={(e) => handlePriorityChange(num as 1 | 2 | 3, e.target.value)}
+                className={`flex-1 ${priorities[`priority_${num}_completed` as keyof WeeklyPriority] ? 'line-through text-gray-500' : ''}`}
+                disabled={isOffline}
+              />
+            </div>
+            
+            {priorities[`priority_${num}` as keyof WeeklyPriority] && (
+              <PriorityProgress
+                priorityText={priorities[`priority_${num}` as keyof WeeklyPriority] as string}
+                progress={priorities[`priority_${num}_progress` as keyof WeeklyPriority] as number}
+                onProgressChange={(progress) => handleProgressChange(num as 1 | 2 | 3, progress)}
+                disabled={isOffline}
+              />
+            )}
           </div>
         ))}
         
