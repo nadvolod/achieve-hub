@@ -18,9 +18,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Add less aggressive refetching
-      staleTime: 60000, // 1 minute
-      refetchInterval: 300000, // 5 minutes
+      staleTime: 60000,
+      refetchInterval: 300000,
     },
   },
 });
@@ -40,6 +39,8 @@ const hideLovableStyle = `
 const AppRoutes = () => {
   const { user, loading } = useAuth();
 
+  console.log("AppRoutes - user:", user, "loading:", loading);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -50,8 +51,8 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      <Route path="/auth" element={<Auth />} />
-      <Route path="/landing" element={<Landing />} />
+      <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+      <Route path="/landing" element={user ? <Navigate to="/" replace /> : <Landing />} />
       <Route 
         path="/" 
         element={
@@ -73,16 +74,16 @@ const App = () => {
   // Set default theme to light on app load
   if (localStorage.getItem("theme") === null) {
     localStorage.setItem("theme", "light");
-    // Remove dark class if it was added by system preference
     document.documentElement.classList.remove("dark");
   }
+
+  console.log("App component loaded");
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        {/* Add style tag to hide the Lovable button and set default light theme */}
         <style>{hideLovableStyle}</style>
         <BrowserRouter>
           <AuthProvider>
