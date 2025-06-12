@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +27,7 @@ export type Entry = {
   date: string;
   type: QuestionType;
   answers: Answer[];
+  mood?: number; // Add mood to entries
 };
 
 export type QuestionsContextType = {
@@ -45,6 +45,7 @@ export type QuestionsContextType = {
   getEntries: (date: string) => Entry[];
   refreshTodaysQuestions: () => void;
   refreshEntries: () => void;
+  getMoodTrend: () => { date: string; mood: number }[];
 };
 
 const QuestionsContext = createContext<QuestionsContextType | undefined>(undefined);
@@ -75,6 +76,14 @@ const dummyQuestions: Question[] = [
     isMandatory: false,
     position: 3
   },
+  {
+    id: "morning-grateful",
+    text: "What is one thing that you are grateful for?",
+    type: 'morning',
+    isActive: true,
+    isMandatory: true,
+    position: 4
+  },
   // Evening questions
   {
     id: "4",
@@ -92,6 +101,14 @@ const dummyQuestions: Question[] = [
     isMandatory: false,
     position: 2
   },
+  {
+    id: "evening-win",
+    text: "What is one win you had today?",
+    type: 'evening',
+    isActive: true,
+    isMandatory: true,
+    position: 3
+  },
 ];
 
 const dummyEntries: Entry[] = [
@@ -99,6 +116,7 @@ const dummyEntries: Entry[] = [
     id: uuidv4(),
     date: '2024-01-01',
     type: 'morning',
+    mood: 4,
     answers: [
       { questionId: '1', questionText: 'How did you sleep?', answer: 'Great!' },
       { questionId: '2', questionText: 'What are you grateful for today?', answer: 'My family' },
@@ -109,6 +127,7 @@ const dummyEntries: Entry[] = [
     id: uuidv4(),
     date: '2024-01-01',
     type: 'evening',
+    mood: 5,
     answers: [
       { questionId: '4', questionText: 'What did you accomplish today?', answer: 'Finished my work' },
       { questionId: '5', questionText: 'What could you have done better today?', answer: 'Spent less time on social media' },
@@ -200,6 +219,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           id: entry.id,
           date: entry.date,
           type: entry.type as QuestionType,
+          mood: entry.mood || undefined,
           answers: entryAnswers.map(a => ({
             questionId: a.question_id,
             questionText: a.question_text,
@@ -503,6 +523,16 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       if (existingEntries && existingEntries.length > 0) {
         existingEntryId = existingEntries[0].id;
         
+        // Update existing entry with mood
+        const { error: updateError } = await supabase
+          .from('user_entries')
+          .update({
+            mood: entry.mood
+          })
+          .eq('id', existingEntryId);
+          
+        if (updateError) throw updateError;
+        
         // Get existing answers for this entry to compare and update
         const { data: existingAnswers, error: answersError } = await supabase
           .from('entry_answers')
@@ -555,9 +585,6 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           }
         }
         
-        // Note: We deliberately don't delete answers that weren't included in this update
-        // This preserves answers across tab changes
-        
       } else {
         // Create new entry since none exists
         isNewEntry = true;
@@ -566,7 +593,8 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           .insert({
             user_id: user.id,
             date: formattedDate,
-            type: entry.type
+            type: entry.type,
+            mood: entry.mood
           })
           .select();
         
@@ -612,6 +640,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           id: existingEntryId,
           date: formattedDate,
           type: entry.type,
+          mood: entry.mood,
           answers: updatedAnswers ? updatedAnswers.map(a => ({
             questionId: a.question_id,
             questionText: a.question_text,
@@ -654,6 +683,13 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
     }
   };
 
+  const getMoodTrend = useCallback((): { date: string; mood: number }[] => {
+    return entries
+      .filter(entry => entry.mood !== undefined)
+      .map(entry => ({ date: entry.date, mood: entry.mood! }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [entries]);
+
   return (
     <QuestionsContext.Provider
       value={{
@@ -671,6 +707,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
         getEntries,
         refreshTodaysQuestions,
         refreshEntries,
+        getMoodTrend,
       }}
     >
       {children}

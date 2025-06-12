@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -5,6 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sun, Moon, Save } from "lucide-react";
 import QuestionCard from "./QuestionCard";
 import WeeklyPriorities from "./WeeklyPriorities";
+import MoodTracker from "./MoodTracker";
+import MoodChart from "./MoodChart";
 import { useQuestions } from "../context/QuestionsContext";
 import { formatDate, getTodayDateString } from "../utils/questionsUtils";
 import { useAuth } from "../context/AuthContext";
@@ -17,19 +20,25 @@ const DailyQuestions: React.FC = () => {
     saveEntry, 
     getEntries, 
     refreshTodaysQuestions,
-    refreshEntries
+    refreshEntries,
+    getMoodTrend
   } = useQuestions();
   
   const { toast } = useToast();
   const { updateStreak } = useAuth();
   const [morningAnswers, setMorningAnswers] = useState<Record<string, string>>({});
   const [eveningAnswers, setEveningAnswers] = useState<Record<string, string>>({});
+  const [morningMood, setMorningMood] = useState<number | undefined>(undefined);
+  const [eveningMood, setEveningMood] = useState<number | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("morning");
   
   // Use the improved getTodayDateString function to get today's date
   const today = getTodayDateString();
   const formattedDate = formatDate(today);
+  
+  // Get mood trend data
+  const moodTrend = getMoodTrend();
   
   // Sort questions to put required ones first
   const sortedMorningQuestions = [...todaysMorningQuestions].sort((a, b) => {
@@ -56,6 +65,7 @@ const DailyQuestions: React.FC = () => {
         loadedAnswers[answer.questionId] = answer.answer;
       });
       setMorningAnswers(loadedAnswers);
+      setMorningMood(morningEntry.mood);
     } else {
       // Initialize empty answers for all morning questions
       const initialAnswers: Record<string, string> = {};
@@ -63,6 +73,7 @@ const DailyQuestions: React.FC = () => {
         initialAnswers[question.id] = '';
       });
       setMorningAnswers(initialAnswers);
+      setMorningMood(undefined);
     }
     
     // Process evening entries
@@ -73,6 +84,7 @@ const DailyQuestions: React.FC = () => {
         loadedAnswers[answer.questionId] = answer.answer;
       });
       setEveningAnswers(loadedAnswers);
+      setEveningMood(eveningEntry.mood);
     } else {
       // Initialize empty answers for all evening questions
       const initialAnswers: Record<string, string> = {};
@@ -80,6 +92,7 @@ const DailyQuestions: React.FC = () => {
         initialAnswers[question.id] = '';
       });
       setEveningAnswers(initialAnswers);
+      setEveningMood(undefined);
     }
     
     // Set default active tab based on time of day
@@ -109,6 +122,7 @@ const DailyQuestions: React.FC = () => {
       // Save both morning and evening entries
       const activeQuestions = activeTab === "morning" ? sortedMorningQuestions : sortedEveningQuestions;
       const activeAnswers = activeTab === "morning" ? morningAnswers : eveningAnswers;
+      const activeMood = activeTab === "morning" ? morningMood : eveningMood;
       
       // Validate mandatory questions for current tab
       const mandatoryQuestions = activeQuestions.filter(q => q.isMandatory);
@@ -136,7 +150,8 @@ const DailyQuestions: React.FC = () => {
         await saveEntry({
           date: today,
           type: activeTab as 'morning' | 'evening',
-          answers: entryAnswers
+          answers: entryAnswers,
+          mood: activeMood
         });
       }
       
@@ -190,6 +205,9 @@ const DailyQuestions: React.FC = () => {
       {/* Weekly Priorities Section */}
       <WeeklyPriorities />
       
+      {/* Mood Chart */}
+      <MoodChart moodData={moodTrend} />
+      
       <Tabs 
         value={activeTab} 
         onValueChange={setActiveTab} 
@@ -207,6 +225,11 @@ const DailyQuestions: React.FC = () => {
         </TabsList>
         
         <TabsContent value="morning" className="space-y-4">
+          <MoodTracker 
+            mood={morningMood} 
+            onMoodChange={setMorningMood} 
+            type="morning"
+          />
           {sortedMorningQuestions.map(question => (
             <QuestionCard
               key={question.id}
@@ -218,6 +241,11 @@ const DailyQuestions: React.FC = () => {
         </TabsContent>
         
         <TabsContent value="evening" className="space-y-4">
+          <MoodTracker 
+            mood={eveningMood} 
+            onMoodChange={setEveningMood} 
+            type="evening"
+          />
           {sortedEveningQuestions.map(question => (
             <QuestionCard
               key={question.id}
