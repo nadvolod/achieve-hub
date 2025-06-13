@@ -68,8 +68,11 @@ const PriorityProgress: React.FC<PriorityProgressProps> = ({
   const { target, isMoney, isWeight, unit } = numberInfo;
   const percentage = Math.min((progress / target) * 100, 100);
 
+  // Determine which type of progress tracker to show
+  const shouldUseCheckboxes = target <= 10 && !isMoney && !isWeight;
+
   // For small numbers (≤10), use individual checkboxes, but not for money or weight
-  if (target <= 10 && !isMoney && !isWeight) {
+  if (shouldUseCheckboxes) {
     return (
       <div className="mt-2 space-y-2">
         <div className="text-sm text-gray-600 mb-2">
