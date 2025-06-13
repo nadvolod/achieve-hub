@@ -182,10 +182,10 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       console.log("QuestionsContext: Fetching entries from Supabase");
       setIsLoading(true);
 
-      // Fetch entries
+      // Fetch entries with a custom select to handle mood column
       const { data: entriesData, error: entriesError } = await supabase
         .from('user_entries')
-        .select('*')
+        .select('id, date, type, user_id, created_at')
         .order('date', { ascending: false });
 
       if (entriesError) throw entriesError;
@@ -219,7 +219,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           id: entry.id,
           date: entry.date,
           type: entry.type as QuestionType,
-          mood: entry.mood || undefined,
+          mood: undefined, // Set to undefined for now since mood column doesn't exist yet
           answers: entryAnswers.map(a => ({
             questionId: a.question_id,
             questionText: a.question_text,
@@ -258,15 +258,12 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       .filter(q => q.type === 'evening' && q.isActive)
       .sort((a, b) => a.position - b.position);
     
-    // For morning questions: always include mandatory ones, then randomly select 2 non-mandatory ones
     const mandatoryMorningQuestions = morningQuestions.filter(q => q.isMandatory);
     const nonMandatoryMorningQuestions = morningQuestions.filter(q => !q.isMandatory);
     
-    // Randomly select 2 non-mandatory questions
     const shuffledNonMandatory = [...nonMandatoryMorningQuestions].sort(() => 0.5 - Math.random());
     const selectedNonMandatory = shuffledNonMandatory.slice(0, 2);
     
-    // Combine mandatory and selected non-mandatory questions
     const finalMorningQuestions = [...mandatoryMorningQuestions, ...selectedNonMandatory]
       .sort((a, b) => a.position - b.position);
     
@@ -523,17 +520,16 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       if (existingEntries && existingEntries.length > 0) {
         existingEntryId = existingEntries[0].id;
         
-        // Update existing entry with mood
-        const { error: updateError } = await supabase
-          .from('user_entries')
-          .update({
-            mood: entry.mood
-          })
-          .eq('id', existingEntryId);
-          
-        if (updateError) throw updateError;
+        // Skip mood update for now since column doesn't exist
+        // const { error: updateError } = await supabase
+        //   .from('user_entries')
+        //   .update({
+        //     mood: entry.mood
+        //   })
+        //   .eq('id', existingEntryId);
+        //   
+        // if (updateError) throw updateError;
         
-        // Get existing answers for this entry to compare and update
         const { data: existingAnswers, error: answersError } = await supabase
           .from('entry_answers')
           .select('*')
@@ -541,7 +537,6 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           
         if (answersError) throw answersError;
         
-        // Create a map of existing answers by question ID for efficient lookup
         const existingAnswersMap = new Map();
         if (existingAnswers) {
           existingAnswers.forEach(answer => {
@@ -553,12 +548,10 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           });
         }
         
-        // Process each answer in the entry
         for (const answer of entry.answers) {
           const existingAnswer = existingAnswersMap.get(answer.questionId);
           
           if (existingAnswer) {
-            // Only update if content changed to minimize database operations
             if (existingAnswer.answer !== answer.answer || existingAnswer.question_text !== answer.questionText) {
               const { error: updateError } = await supabase
                 .from('entry_answers')
@@ -571,7 +564,6 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
               if (updateError) throw updateError;
             }
           } else {
-            // Insert new answer if it doesn't exist yet
             const { error: insertError } = await supabase
               .from('entry_answers')
               .insert({
@@ -586,27 +578,25 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
         }
         
       } else {
-        // Create new entry since none exists
         isNewEntry = true;
+        // Create entry without mood field for now
         const { data: entryData, error: entryError } = await supabase
           .from('user_entries')
           .insert({
             user_id: user.id,
             date: formattedDate,
-            type: entry.type,
-            mood: entry.mood
+            type: entry.type
+            // mood: entry.mood - Skip this until column is added
           })
           .select();
         
         if (entryError) throw entryError;
         
-        // Then save each answer
         if (entryData && entryData[0]) {
           existingEntryId = entryData[0].id;
           
-          // Prepare answers for insertion
           const answersToInsert = entry.answers
-            .filter(answer => answer.answer.trim() !== '') // Only insert non-empty answers
+            .filter(answer => answer.answer.trim() !== '')
             .map(answer => ({
               entry_id: existingEntryId,
               question_id: answer.questionId,
@@ -614,7 +604,6 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
               answer: answer.answer
             }));
           
-          // Only insert if we have answers
           if (answersToInsert.length > 0) {
             const { error: answersError } = await supabase
               .from('entry_answers')
@@ -625,8 +614,6 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
         }
       }
       
-      // Update entries in local state to reflect changes
-      // We need to fetch the complete updated entry
       if (existingEntryId) {
         const { data: updatedAnswers, error: updatedAnswersError } = await supabase
           .from('entry_answers')
@@ -635,12 +622,11 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           
         if (updatedAnswersError) throw updatedAnswersError;
         
-        // Create the updated entry
         const updatedEntry: Entry = {
           id: existingEntryId,
           date: formattedDate,
           type: entry.type,
-          mood: entry.mood,
+          mood: entry.mood, // Keep in local state for now
           answers: updatedAnswers ? updatedAnswers.map(a => ({
             questionId: a.question_id,
             questionText: a.question_text,
@@ -648,18 +634,14 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           })) : []
         };
         
-        // Update local state with careful merging
         setEntries(prev => {
-          // Remove the specific entry being updated if it exists
           const filtered = prev.filter(e => 
             !(e.date === formattedDate && e.type === entry.type)
           );
           
-          // Add the updated entry
           return [...filtered, updatedEntry];
         });
         
-        // Update streak
         try {
           console.log("Updating streak after entry save");
           await updateStreak();
@@ -667,7 +649,6 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           console.error("Error updating streak:", streakError);
         }
         
-        // Refresh entries to get latest data
         setTimeout(() => {
           refreshEntries();
         }, 500);
