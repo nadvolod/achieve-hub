@@ -22,7 +22,7 @@ const PriorityProgress: React.FC<PriorityProgressProps> = ({
     // Look for patterns like "10 positions", "$500", "5 calls", "20 lbs", etc.
     const patterns = [
       // Money patterns: $5M, $500, $1,000, etc.
-      /\$(\d+(?:,\d{3})*(?:\.\d{2})?)\s*([MmKk]?)(?:\s*(million|thousand|dollars?|usd|euros?|pounds?))?/i,
+      /\$(\d+(?:,\d{3})*(?:\.\d+)?)\s*([MmKk]?)(?:\s*(million|thousand|dollars?|usd|euros?|pounds?))?/i,
       // Weight patterns: 20 lbs, 10 kg, etc.
       /(\d+(?:\.\d+)?)\s*(lbs?|pounds?|kg|kilograms?)/i,
       // General number patterns: 10 positions, 5 calls, etc.
@@ -159,17 +159,19 @@ const PriorityProgress: React.FC<PriorityProgressProps> = ({
         </span>
       </div>
       
-      <Progress value={percentage} className="h-2" />
-      
-      <Slider
-        value={[progress]}
-        onValueChange={(value) => onProgressChange(value[0])}
-        max={target}
-        min={0}
-        step={getStepSize()}
-        disabled={disabled}
-        className="w-full"
-      />
+      <div className="space-y-2">
+        <Progress value={percentage} className="h-2" />
+        
+        <Slider
+          value={[progress]}
+          onValueChange={(value) => onProgressChange(value[0])}
+          max={target}
+          min={0}
+          step={getStepSize()}
+          disabled={disabled}
+          className="w-full"
+        />
+      </div>
       
       <div className="flex justify-between text-xs text-gray-400">
         <span>0</span>
