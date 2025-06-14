@@ -29,17 +29,17 @@ const AddEditQuestionDialog: React.FC<AddEditQuestionDialogProps> = ({
   editingQuestion
 }) => {
   const [questionText, setQuestionText] = useState("");
-  const [isMandatory, setIsMandatory] = useState(false);
+  const [isTopFive, setIsTopFive] = useState(false);
   
   // Reset form state when dialog opens with new editing data
   useEffect(() => {
     if (open) {
       if (editingQuestion) {
         setQuestionText(editingQuestion.text);
-        setIsMandatory(editingQuestion.isMandatory);
+        setIsTopFive(editingQuestion.isTopFive);
       } else {
         setQuestionText("");
-        setIsMandatory(false);
+        setIsTopFive(false);
       }
     }
   }, [open, editingQuestion]);
@@ -52,7 +52,7 @@ const AddEditQuestionDialog: React.FC<AddEditQuestionDialogProps> = ({
       text: trimmedText,
       type: questionType,
       isActive: true,
-      isMandatory: isMandatory
+      isTopFive: isTopFive
     });
     
     onOpenChange(false);
@@ -91,15 +91,15 @@ const AddEditQuestionDialog: React.FC<AddEditQuestionDialogProps> = ({
           
           <div className="flex items-center space-x-2">
             <Checkbox 
-              id="mandatory" 
-              checked={isMandatory}
-              onCheckedChange={(checked) => setIsMandatory(!!checked)}
+              id="topfive" 
+              checked={isTopFive}
+              onCheckedChange={(checked) => setIsTopFive(!!checked)}
             />
             <label 
-              htmlFor="mandatory"
+              htmlFor="topfive"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              Make this a mandatory question
+              Make this a Top 5 question
             </label>
           </div>
         </div>

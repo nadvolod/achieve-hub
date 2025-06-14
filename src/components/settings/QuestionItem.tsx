@@ -85,18 +85,18 @@ const QuestionItem: React.FC<QuestionItemProps> = ({
       <div className="flex items-center justify-between mt-2 ml-6">
         <div className="flex items-center space-x-2">
           <Checkbox 
-            id={`mandatory-${question.id}`}
-            checked={question.isMandatory}
+            id={`topfive-${question.id}`}
+            checked={question.isTopFive}
             onCheckedChange={(checked) => {
               onMandatoryToggle(question.id, !!checked);
-              handleStatusNotification(`Question requirement ${checked ? 'enabled' : 'disabled'}`);
+              handleStatusNotification(`Question Top 5 status ${checked ? 'enabled' : 'disabled'}`);
             }}
           />
           <label 
-            htmlFor={`mandatory-${question.id}`}
+            htmlFor={`topfive-${question.id}`}
             className="text-sm text-gray-600"
           >
-            Required
+            Top 5
           </label>
         </div>
         

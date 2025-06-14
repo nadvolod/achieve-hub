@@ -1,3 +1,4 @@
+
 import { Entry, Question } from "../context/QuestionsContext";
 
 // Format date as "May 16, 2025"
@@ -59,30 +60,30 @@ export const groupEntriesByMonth = (entries: Entry[]): Record<string, Entry[]> =
 
 // Get the list of questions for a specific day using the same deterministic algorithm as in context
 export const getMorningQuestionsForDate = (date: string, questions: Question[]): Question[] => {
-  // Get mandatory questions
-  const mandatoryQuestions = questions.filter(q => q.isMandatory && q.isActive && q.type === 'morning');
+  // Get Top 5 questions
+  const topFiveQuestions = questions.filter(q => q.isTopFive && q.isActive && q.type === 'morning');
   
   // Get rotating questions
-  const nonMandatoryQuestions = questions.filter(q => !q.isMandatory && q.isActive && q.type === 'morning');
+  const nonTopFiveQuestions = questions.filter(q => !q.isTopFive && q.isActive && q.type === 'morning');
   
   // Select 2 rotating questions (or fewer if not enough available)
-  const selectedRotatingCount = Math.min(nonMandatoryQuestions.length, 2);
+  const selectedRotatingCount = Math.min(nonTopFiveQuestions.length, 2);
   
   // Create a deterministic but "random" selection based on the date
   const dateHash = parseInt(date.replace(/-/g, ''));
   
   let rotatingQuestions: Question[] = [];
   
-  if (nonMandatoryQuestions.length > 0) {
+  if (nonTopFiveQuestions.length > 0) {
     // Create a deterministic shuffle based on the date
-    const shuffledQuestions = [...nonMandatoryQuestions].sort((a, b) => {
+    const shuffledQuestions = [...nonTopFiveQuestions].sort((a, b) => {
       return ((parseInt(a.id) * dateHash) % 17) - ((parseInt(b.id) * dateHash) % 17);
     });
     
     rotatingQuestions = shuffledQuestions.slice(0, selectedRotatingCount);
   }
 
-  return [...mandatoryQuestions, ...rotatingQuestions];
+  return [...topFiveQuestions, ...rotatingQuestions];
 };
 
 // Get all active evening questions
