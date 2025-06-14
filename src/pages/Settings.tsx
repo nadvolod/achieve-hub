@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
@@ -35,15 +34,15 @@ const Settings = () => {
     .filter(q => q.type === 'evening')
     .sort((a, b) => a.position - b.position);
   
-  const morningMandatoryCount = morningQuestions.filter(q => q.isMandatory && q.isActive).length;
-  const eveningMandatoryCount = eveningQuestions.filter(q => q.isMandatory && q.isActive).length;
+  const morningTopFiveCount = morningQuestions.filter(q => q.isTopFive && q.isActive).length;
+  const eveningTopFiveCount = eveningQuestions.filter(q => q.isTopFive && q.isActive).length;
   
   const handleQuestionToggle = (id: string, isActive: boolean) => {
     updateQuestion(id, { isActive });
   };
   
-  const handleMandatoryToggle = (id: string, isMandatory: boolean) => {
-    updateQuestion(id, { isMandatory });
+  const handleTopFiveToggle = (id: string, isTopFive: boolean) => {
+    updateQuestion(id, { isTopFive });
   };
   
   const handleOpenAddDialog = (type: "morning" | "evening") => {
@@ -65,7 +64,7 @@ const Settings = () => {
         await updateQuestion(editingQuestion.id, {
           text: questionData.text,
           isActive: questionData.isActive,
-          isMandatory: questionData.isMandatory
+          isTopFive: questionData.isTopFive
         });
         
         toast({
@@ -78,7 +77,7 @@ const Settings = () => {
           text: questionData.text,
           type: questionData.type,
           isActive: questionData.isActive,
-          isMandatory: questionData.isMandatory,
+          isTopFive: questionData.isTopFive,
         });
         
         toast({
@@ -213,11 +212,11 @@ const Settings = () => {
               title="Morning Questions"
               questionType="morning"
               questions={morningQuestions}
-              mandatoryCount={morningMandatoryCount}
+              mandatoryCount={morningTopFiveCount}
               draggedItem={draggedItem}
               dragOverIndex={dragOverIndex}
               onAddQuestion={handleOpenAddDialog}
-              onMandatoryToggle={handleMandatoryToggle}
+              onMandatoryToggle={handleTopFiveToggle}
               onActiveToggle={handleQuestionToggle}
               onRemoveQuestion={handleRemoveQuestion}
               onEditQuestion={handleOpenEditDialog}
@@ -230,11 +229,11 @@ const Settings = () => {
               title="Evening Questions"
               questionType="evening"
               questions={eveningQuestions}
-              mandatoryCount={eveningMandatoryCount}
+              mandatoryCount={eveningTopFiveCount}
               draggedItem={draggedItem}
               dragOverIndex={dragOverIndex}
               onAddQuestion={handleOpenAddDialog}
-              onMandatoryToggle={handleMandatoryToggle}
+              onMandatoryToggle={handleTopFiveToggle}
               onActiveToggle={handleQuestionToggle}
               onRemoveQuestion={handleRemoveQuestion}
               onEditQuestion={handleOpenEditDialog}

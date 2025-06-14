@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -40,16 +39,16 @@ const DailyQuestions: React.FC = () => {
   // Get mood trend data
   const moodTrend = getMoodTrend();
   
-  // Sort questions to put required ones first
+  // Sort questions to put top 5 ones first
   const sortedMorningQuestions = [...todaysMorningQuestions].sort((a, b) => {
-    if (a.isMandatory && !b.isMandatory) return -1;
-    if (!a.isMandatory && b.isMandatory) return 1;
+    if (a.isTopFive && !b.isTopFive) return -1;
+    if (!a.isTopFive && b.isTopFive) return 1;
     return a.position - b.position;
   });
 
   const sortedEveningQuestions = [...todaysEveningQuestions].sort((a, b) => {
-    if (a.isMandatory && !b.isMandatory) return -1;
-    if (!a.isMandatory && b.isMandatory) return 1;
+    if (a.isTopFive && !b.isTopFive) return -1;
+    if (!a.isTopFive && b.isTopFive) return 1;
     return a.position - b.position;
   });
   
@@ -124,19 +123,7 @@ const DailyQuestions: React.FC = () => {
       const activeAnswers = activeTab === "morning" ? morningAnswers : eveningAnswers;
       const activeMood = activeTab === "morning" ? morningMood : eveningMood;
       
-      // Validate mandatory questions for current tab
-      const mandatoryQuestions = activeQuestions.filter(q => q.isMandatory);
-      const unansweredMandatory = mandatoryQuestions.filter(q => !activeAnswers[q.id]?.trim());
-      
-      if (unansweredMandatory.length > 0) {
-        toast({
-          title: "Missing required answers",
-          description: `Please answer all required ${activeTab} questions before saving.`,
-          variant: "destructive"
-        });
-        setIsSaving(false);
-        return;
-      }
+      // No mandatory validation - users can save with any answers
       
       // Process entries for current tab
       const entryAnswers = activeQuestions.map(question => ({

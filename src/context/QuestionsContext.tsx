@@ -12,7 +12,7 @@ export type Question = {
   text: string;
   type: QuestionType;
   isActive: boolean;
-  isMandatory: boolean;
+  isTopFive: boolean; // Changed from isMandatory
   position: number;
 };
 
@@ -57,7 +57,7 @@ const dummyQuestions: Question[] = [
     text: "How did you sleep?",
     type: 'morning',
     isActive: true,
-    isMandatory: true,
+    isTopFive: true, // Changed from isMandatory
     position: 1
   },
   {
@@ -65,7 +65,7 @@ const dummyQuestions: Question[] = [
     text: "What are you grateful for today?",
     type: 'morning',
     isActive: true,
-    isMandatory: false,
+    isTopFive: false, // Changed from isMandatory
     position: 2
   },
   {
@@ -73,7 +73,7 @@ const dummyQuestions: Question[] = [
     text: "What would make today great?",
     type: 'morning',
     isActive: true,
-    isMandatory: false,
+    isTopFive: false, // Changed from isMandatory
     position: 3
   },
   {
@@ -81,7 +81,7 @@ const dummyQuestions: Question[] = [
     text: "What is one thing that you are grateful for?",
     type: 'morning',
     isActive: true,
-    isMandatory: true,
+    isTopFive: true, // Changed from isMandatory
     position: 4
   },
   // Evening questions
@@ -90,7 +90,7 @@ const dummyQuestions: Question[] = [
     text: "What did you accomplish today?",
     type: 'evening',
     isActive: true,
-    isMandatory: true,
+    isTopFive: true, // Changed from isMandatory
     position: 1
   },
   {
@@ -98,7 +98,7 @@ const dummyQuestions: Question[] = [
     text: "What could you have done better today?",
     type: 'evening',
     isActive: true,
-    isMandatory: false,
+    isTopFive: false, // Changed from isMandatory
     position: 2
   },
   {
@@ -106,7 +106,7 @@ const dummyQuestions: Question[] = [
     text: "What is one win you had today?",
     type: 'evening',
     isActive: true,
-    isMandatory: true,
+    isTopFive: true, // Changed from isMandatory
     position: 3
   },
 ];
@@ -160,7 +160,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
         text: q.text,
         type: q.type as QuestionType,
         isActive: q.is_active,
-        isMandatory: q.is_mandatory,
+        isTopFive: q.is_mandatory, // Map existing mandatory field to topFive for backward compatibility
         position: q.position
       }));
 
@@ -258,13 +258,14 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       .filter(q => q.type === 'evening' && q.isActive)
       .sort((a, b) => a.position - b.position);
     
-    const mandatoryMorningQuestions = morningQuestions.filter(q => q.isMandatory);
-    const nonMandatoryMorningQuestions = morningQuestions.filter(q => !q.isMandatory);
+    // Show top 5 questions first, then others - no mandatory requirement
+    const topFiveMorningQuestions = morningQuestions.filter(q => q.isTopFive);
+    const nonTopFiveMorningQuestions = morningQuestions.filter(q => !q.isTopFive);
     
-    const shuffledNonMandatory = [...nonMandatoryMorningQuestions].sort(() => 0.5 - Math.random());
-    const selectedNonMandatory = shuffledNonMandatory.slice(0, 2);
+    const shuffledNonTopFive = [...nonTopFiveMorningQuestions].sort(() => 0.5 - Math.random());
+    const selectedNonTopFive = shuffledNonTopFive.slice(0, 2);
     
-    const finalMorningQuestions = [...mandatoryMorningQuestions, ...selectedNonMandatory]
+    const finalMorningQuestions = [...topFiveMorningQuestions, ...selectedNonTopFive]
       .sort((a, b) => a.position - b.position);
     
     setTodaysMorningQuestions(finalMorningQuestions);
@@ -313,7 +314,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           text: question.text,
           type: question.type,
           is_active: question.isActive,
-          is_mandatory: question.isMandatory,
+          is_mandatory: question.isTopFive, // Map topFive to mandatory field for backward compatibility
           position: maxPosition + 1
         }])
         .select();
@@ -327,7 +328,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
           text: data[0].text,
           type: data[0].type as QuestionType,
           isActive: data[0].is_active,
-          isMandatory: data[0].is_mandatory,
+          isTopFive: data[0].is_mandatory, // Map mandatory field back to topFive
           position: data[0].position
         };
         
@@ -356,7 +357,7 @@ export const QuestionsProvider = ({ children }: { children: React.ReactNode }) =
       const supabaseUpdates: any = {};
       if (updates.text !== undefined) supabaseUpdates.text = updates.text;
       if (updates.isActive !== undefined) supabaseUpdates.is_active = updates.isActive;
-      if (updates.isMandatory !== undefined) supabaseUpdates.is_mandatory = updates.isMandatory;
+      if (updates.isTopFive !== undefined) supabaseUpdates.is_mandatory = updates.isTopFive; // Map topFive to mandatory field
       
       // No position updates allowed here, use reorderQuestions for that
       

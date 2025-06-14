@@ -56,7 +56,7 @@ const QuestionsList: React.FC<QuestionsListProps> = ({
       </div>
       
       <div className="text-sm text-gray-500 mb-4">
-        You have {mandatoryCount} mandatory {questionType} questions
+        You have {mandatoryCount} Top 5 {questionType} questions
         {questionType === "morning" ? " that will appear daily. The remaining morning questions will rotate, with 2 showing each day." : ". All active evening questions will be shown every day."}
         <p className="mt-1 text-xs text-teal-600">Drag and drop questions to reorder them.</p>
       </div>

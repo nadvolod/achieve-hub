@@ -33,12 +33,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   
   return (
     <Card className={`mb-4 transition-all duration-200 border-l-4 
-      ${question.isMandatory ? 'border-l-teal-400' : 'border-l-navy-300'}`}>
+      ${question.isTopFive ? 'border-l-teal-400' : 'border-l-navy-300'}`}>
       <CardHeader className="p-4 pb-2 flex flex-row justify-between items-start">
         <h3 className="text-md font-medium text-gray-800 dark:text-gray-200">{question.text}</h3>
-        {question.isMandatory && (
+        {question.isTopFive && (
           <Badge variant="outline" className="bg-teal-100 hover:bg-teal-100 text-teal-700 border-teal-200 font-normal text-xs rounded-full px-3 py-1">
-            Required
+            Top 5
           </Badge>
         )}
       </CardHeader>
