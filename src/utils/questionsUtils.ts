@@ -24,6 +24,15 @@ export const getTodayDateString = (): string => {
   return `${year}-${month}-${day}`;
 };
 
+// Get the start of the current week (Sunday)
+export const getWeekStartDate = (): string => {
+  const today = new Date();
+  const day = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+  const diff = today.getDate() - day; // Subtract current day to get to Sunday
+  const sunday = new Date(today.setDate(diff));
+  return sunday.toISOString().split('T')[0];
+};
+
 // Sort entries by date (most recent first)
 export const sortEntriesByDate = (entries: Entry[]): Entry[] => {
   return [...entries].sort((a, b) => {

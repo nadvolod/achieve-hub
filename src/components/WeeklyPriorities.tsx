@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "../context/AuthContext";
 import { Save, Target, Wifi, WifiOff } from "lucide-react";
 import PriorityProgress from "./PriorityProgress";
+import { getWeekStartDate } from "../utils/questionsUtils";
 
 type WeeklyPriority = {
   id: string;
@@ -36,13 +38,9 @@ const WeeklyPriorities: React.FC = () => {
   // Add ref to prevent multiple simultaneous fetch calls
   const fetchingRef = useRef(false);
 
-  // Get the start of the current week (Monday) - memoize this value
+  // Get the start of the current week (Sunday) - memoize this value
   const weekStartDate = React.useMemo((): string => {
-    const today = new Date();
-    const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-    const monday = new Date(today.setDate(diff));
-    return monday.toISOString().split('T')[0];
+    return getWeekStartDate();
   }, []);
 
   const fetchWeeklyPriorities = useCallback(async () => {

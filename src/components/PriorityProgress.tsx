@@ -23,12 +23,14 @@ const PriorityProgress: React.FC<PriorityProgressProps> = ({
     const patterns = [
       // Money patterns: $5M, $500, $1,000, etc.
       /\$(\d+(?:,\d{3})*(?:\.\d+)?)\s*([MmKk]?)(?:\s*(million|thousand|dollars?|usd|euros?|pounds?))?/i,
-      // Weight patterns: 20 lbs, 10 kg, etc.
+      // Weight patterns: 20 lbs, 10 kg, 87.8 kg etc.
       /(\d+(?:\.\d+)?)\s*(lbs?|pounds?|kg|kilograms?)/i,
-      // General number patterns: 10 positions, 5 calls, etc.
-      /(\d+)\s*(positions?|applications?|calls?|meetings?|hours?|days?|weeks?|months?|times?|people?|companies?|interviews?|emails?)/i,
+      // General number patterns: 10 positions, 5 calls, 21 revenue generating actions, etc.
+      /(\d+(?:\.\d+)?)\s*([a-zA-Z]+(?:\s+[a-zA-Z]+)*\s*(?:positions?|applications?|calls?|meetings?|hours?|days?|weeks?|months?|times?|people?|companies?|interviews?|emails?|actions?))/i,
+      // Simple number patterns: 10 positions, 5 calls, etc.
+      /(\d+(?:\.\d+)?)\s*(positions?|applications?|calls?|meetings?|hours?|days?|weeks?|months?|times?|people?|companies?|interviews?|emails?|actions?)/i,
       // Fraction patterns: 5 of 10, 3/5, etc.
-      /(\d+)\s*(?:of|out of|\/)\s*(\d+)/i
+      /(\d+(?:\.\d+)?)\s*(?:of|out of|\/)\s*(\d+(?:\.\d+)?)/i
     ];
 
     for (const pattern of patterns) {
@@ -69,7 +71,7 @@ const PriorityProgress: React.FC<PriorityProgressProps> = ({
   const percentage = Math.min((progress / target) * 100, 100);
 
   // Determine which type of progress tracker to show
-  const shouldUseCheckboxes = target <= 10 && !isMoney && !isWeight;
+  const shouldUseCheckboxes = target <= 10 && !isMoney && !isWeight && Number.isInteger(target);
 
   // For small numbers (≤10), use individual checkboxes, but not for money or weight
   if (shouldUseCheckboxes) {
@@ -145,7 +147,7 @@ const PriorityProgress: React.FC<PriorityProgressProps> = ({
       else if (target >= 10000) return 1000; // $1K steps for tens of thousands
       else return 100; // $100 steps for smaller amounts
     } else if (isWeight) {
-      return 0.5; // 0.5 lb/kg steps for weight
+      return 0.1; // 0.1 lb/kg steps for weight to preserve decimals
     } else {
       return 1; // 1 unit steps for other metrics
     }
