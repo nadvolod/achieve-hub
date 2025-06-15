@@ -1,8 +1,6 @@
-
 import React from 'react';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Progress } from "@/components/ui/progress";
 
 interface PriorityProgressProps {
   priorityText: string;
@@ -165,8 +163,6 @@ const PriorityProgress: React.FC<PriorityProgressProps> = ({
       </div>
       
       <div className="space-y-2">
-        <Progress value={percentage} className="h-2" />
-        
         <Slider
           value={[progress]}
           onValueChange={(value) => onProgressChange(value[0])}
