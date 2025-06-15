@@ -40,8 +40,8 @@ const PriorityProgress: React.FC<PriorityProgressProps> = ({
         const isMoney = text.includes('$') || /dollars?|usd|euros?|pounds?/i.test(text);
         const isWeight = /lbs?|pounds?|kg|kilograms?/i.test(text);
         
-        // Handle million/thousand suffixes
-        if (match[2] && /[MmKk]/.test(match[2])) {
+        // Handle million/thousand suffixes ONLY for money, not for weight
+        if (match[2] && /[MmKk]/.test(match[2]) && isMoney) {
           if (/[Mm]/.test(match[2])) {
             number = number * 1000000; // Million
           } else if (/[Kk]/.test(match[2])) {
