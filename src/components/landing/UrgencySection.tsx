@@ -16,7 +16,7 @@ const UrgencySection = () => {
             Every Day You Wait Is Another Day Lost
           </h3>
           <p className="text-lg text-red-600 mb-8">
-            While you're reading this, successful people are already using tools like Daily Dreamer to 
+            While you're reading this, successful people are already using tools like Achieve Hub to 
             build the life they want. The gap between where you are and where you could be grows wider every day.
           </p>
           <div className="bg-white p-6 rounded-lg shadow-lg mb-8">

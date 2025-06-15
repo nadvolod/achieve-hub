@@ -6,7 +6,7 @@ test.describe('Navigation', () => {
   });
 
   test('should have correct page title', async ({ page }) => {
-    await expect(page).toHaveTitle(/Daily Dreamer/);
+    await expect(page).toHaveTitle(/Achieve Hub/);
   });
 
 
@@ -18,7 +18,7 @@ test.describe('Navigation', () => {
 
   test('should navigate via CTA button', async ({ page }) => {
     // Click the main CTA button
-    await page.getByRole('button', { name: 'Start Your Transformation Today' }).click();
+    await page.getByRole('button', { name: 'Start Achieving Today' }).click();
     await expect(page).toHaveURL('/auth');
   });
 
@@ -35,4 +35,4 @@ test.describe('Navigation', () => {
     await page.goto('/non-existent-page');
     await expect(page.getByText(/not found/i)).toBeVisible();
   });
-}); 
+});

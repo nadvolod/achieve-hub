@@ -11,7 +11,7 @@ const LandingHeader = () => {
   return (
     <header className="container mx-auto px-4 py-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-navy-500">Daily Dreamer</h1>
+        <h1 className="text-2xl font-bold text-navy-500">Achieve Hub</h1>
         <div className="flex gap-3">
           {user ? (
             <Button 

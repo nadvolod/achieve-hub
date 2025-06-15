@@ -1,4 +1,3 @@
-
 import React from "react";
 import { CheckCircle } from "lucide-react";
 
@@ -11,7 +10,7 @@ const ProblemSolution = () => {
         </h3>
         <div className="grid md:grid-cols-2 gap-8 mb-12">
           <div className="bg-gray-100 p-6 rounded-lg">
-            <h4 className="font-bold text-gray-800 mb-4">Without Daily Dreamer:</h4>
+            <h4 className="font-bold text-gray-800 mb-4">Without Achieve Hub:</h4>
             <ul className="text-left space-y-3 text-gray-600">
               <li className="flex items-start space-x-2">
                 <span className="text-red-500 mt-1">✗</span>
@@ -32,7 +31,7 @@ const ProblemSolution = () => {
             </ul>
           </div>
           <div className="bg-teal-50 p-6 rounded-lg">
-            <h4 className="font-bold text-teal-800 mb-4">With Daily Dreamer:</h4>
+            <h4 className="font-bold text-teal-800 mb-4">With Achieve Hub:</h4>
             <ul className="text-left space-y-3 text-teal-700">
               <li className="flex items-start space-x-2">
                 <CheckCircle className="h-5 w-5 text-teal-500 mt-1 flex-shrink-0" />

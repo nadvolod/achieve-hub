@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ const Header = () => {
             className="ml-2 text-lg font-semibold dark:text-white cursor-pointer"
             onClick={() => navigate("/")}
           >
-            Daily Dreamer
+            Achieve Hub
           </div>
         </div>
         
