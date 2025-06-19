@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sun, Moon, Save } from "lucide-react";
+import { Sun, Moon, Save, Grid, List } from "lucide-react";
 import QuestionCard from "./QuestionCard";
+import SingleQuestionView from "./SingleQuestionView";
 import WeeklyPriorities from "./WeeklyPriorities";
 import MoodTracker from "./MoodTracker";
 import MoodChart from "./MoodChart";
@@ -31,6 +33,7 @@ const DailyQuestions: React.FC = () => {
   const [eveningMood, setEveningMood] = useState<number | undefined>(undefined);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("morning");
+  const [viewMode, setViewMode] = useState<'single' | 'list'>('single');
   
   // Use the improved getTodayDateString function to get today's date
   const today = getTodayDateString();
@@ -123,8 +126,6 @@ const DailyQuestions: React.FC = () => {
       const activeAnswers = activeTab === "morning" ? morningAnswers : eveningAnswers;
       const activeMood = activeTab === "morning" ? morningMood : eveningMood;
       
-      // No mandatory validation - users can save with any answers
-      
       // Process entries for current tab
       const entryAnswers = activeQuestions.map(question => ({
         questionId: question.id,
@@ -172,21 +173,94 @@ const DailyQuestions: React.FC = () => {
       description: "Your daily questions have been refreshed."
     });
   };
+
+  // If in single view mode, render the single question interface
+  if (viewMode === 'single') {
+    const activeQuestions = activeTab === "morning" ? sortedMorningQuestions : sortedEveningQuestions;
+    const activeAnswers = activeTab === "morning" ? morningAnswers : eveningAnswers;
+    const activeMood = activeTab === "morning" ? morningMood : eveningMood;
+    const onAnswerChange = activeTab === "morning" ? handleMorningAnswerChange : handleEveningAnswerChange;
+    const onMoodChange = activeTab === "morning" ? setMorningMood : setEveningMood;
+
+    return (
+      <div className="relative">
+        {/* Header with view toggle */}
+        <div className="bg-white shadow-sm border-b px-4 py-3 fixed top-16 left-0 right-0 z-10">
+          <div className="max-w-md mx-auto flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-navy-500">{formattedDate}</h2>
+            <div className="flex items-center gap-2">
+              <Tabs 
+                value={activeTab} 
+                onValueChange={setActiveTab} 
+                className="w-auto"
+              >
+                <TabsList className="grid grid-cols-2">
+                  <TabsTrigger value="morning" className="flex items-center gap-1 text-xs">
+                    <Sun className="h-3 w-3" />
+                    <span>AM</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="evening" className="flex items-center gap-1 text-xs">
+                    <Moon className="h-3 w-3" />
+                    <span>PM</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <Button
+                onClick={() => setViewMode('list')}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1"
+              >
+                <List className="h-4 w-4" />
+                List
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Offset for fixed header */}
+        <div className="pt-16">
+          <SingleQuestionView
+            questions={activeQuestions}
+            answers={activeAnswers}
+            onAnswerChange={onAnswerChange}
+            mood={activeMood}
+            onMoodChange={onMoodChange}
+            type={activeTab as 'morning' | 'evening'}
+            onSave={handleSaveAll}
+            isSaving={isSaving}
+          />
+        </div>
+      </div>
+    );
+  }
   
+  // Original list view
   return (
     <div className="mt-4 relative pb-16">
       <StreakDisplay />
       
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold text-navy-500">{formattedDate}</h2>
-        <Button 
-          onClick={handleRefresh} 
-          variant="outline" 
-          size="sm"
-          className="text-teal-500 border-teal-300 hover:bg-teal-50"
-        >
-          Refresh Questions
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setViewMode('single')}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1"
+          >
+            <Grid className="h-4 w-4" />
+            Single
+          </Button>
+          <Button 
+            onClick={handleRefresh} 
+            variant="outline" 
+            size="sm"
+            className="text-teal-500 border-teal-300 hover:bg-teal-50"
+          >
+            Refresh Questions
+          </Button>
+        </div>
       </div>
       
       {/* Weekly Priorities Section */}
