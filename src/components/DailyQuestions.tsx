@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -235,12 +234,17 @@ const DailyQuestions: React.FC = () => {
     );
   }
   
-  // Original list view
+  // Optimized list view with better layout
   return (
-    <div className="mt-4 relative pb-16">
+    <div className="space-y-4">
+      {/* Streak Display */}
       <StreakDisplay />
       
-      <div className="flex justify-between items-center mb-6">
+      {/* Weekly Priorities - Compact Version */}
+      <WeeklyPriorities />
+      
+      {/* Main Controls */}
+      <div className="flex justify-between items-center">
         <h2 className="text-xl font-semibold text-navy-500">{formattedDate}</h2>
         <div className="flex items-center gap-2">
           <Button
@@ -258,16 +262,15 @@ const DailyQuestions: React.FC = () => {
             size="sm"
             className="text-teal-500 border-teal-300 hover:bg-teal-50"
           >
-            Refresh Questions
+            Refresh
           </Button>
         </div>
       </div>
       
-      {/* Weekly Priorities Section */}
-      <WeeklyPriorities />
-      
-      {/* Mood Chart */}
-      <MoodChart moodData={moodTrend} />
+      {/* Mood Chart - Compact */}
+      <div className="mb-4">
+        <MoodChart moodData={moodTrend} />
+      </div>
       
       <Tabs 
         value={activeTab} 
