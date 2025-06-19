@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "../context/AuthContext";
-import { Save, Target, Wifi, WifiOff } from "lucide-react";
+import { Save, Target, WifiOff } from "lucide-react";
 import PriorityProgress from "./PriorityProgress";
 import { getWeekStartDate } from "../utils/questionsUtils";
 
@@ -303,9 +303,9 @@ const WeeklyPriorities: React.FC = () => {
   // Always render with consistent height to prevent jumping
   if (isLoading) {
     return (
-      <Card className="border-l-4 border-l-purple-400 min-h-[200px]">
+      <Card className="border-l-4 border-l-purple-400">
         <CardContent className="p-4 flex items-center justify-center">
-          <div className="animate-pulse text-purple-600">Loading weekly priorities...</div>
+          <div className="animate-pulse text-purple-600">Loading...</div>
         </CardContent>
       </Card>
     );
@@ -313,11 +313,11 @@ const WeeklyPriorities: React.FC = () => {
 
   if (!priorities) {
     return (
-      <Card className="border-l-4 border-l-purple-400 min-h-[200px]">
+      <Card className="border-l-4 border-l-purple-400">
         <CardContent className="p-4 flex items-center justify-center">
           <div className="text-red-600 flex items-center gap-2">
             <WifiOff className="h-4 w-4" />
-            Working in offline mode
+            Offline mode
           </div>
         </CardContent>
       </Card>
@@ -325,29 +325,30 @@ const WeeklyPriorities: React.FC = () => {
   }
 
   return (
-    <Card className="border-l-4 border-l-purple-400 bg-gradient-to-r from-purple-50 to-indigo-50">
-      <CardHeader className="p-3 pb-2">
-        <div className="flex items-center gap-2 justify-between">
+    <Card className="border-l-4 border-l-purple-400 bg-gradient-to-br from-purple-50 to-indigo-50">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-purple-600" />
-            <h3 className="text-base font-semibold text-purple-800">
-              Weekly Priorities
-            </h3>
+            <div className="bg-purple-500 rounded-full p-2">
+              <Target className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-purple-800">
+                Weekly Goals
+              </h3>
+              <p className="text-xs text-purple-600">
+                Week of {new Date(weekStartDate).toLocaleDateString()}
+              </p>
+            </div>
           </div>
           {isOffline && (
-            <div className="flex items-center gap-1 text-xs text-amber-600">
-              <WifiOff className="h-3 w-3" />
-              <span>Offline</span>
-            </div>
+            <WifiOff className="h-4 w-4 text-amber-500" />
           )}
         </div>
-        <p className="text-xs text-purple-600">
-          Week of {new Date(weekStartDate).toLocaleDateString()}
-        </p>
       </CardHeader>
-      <CardContent className="p-3 pt-1 space-y-3">
+      <CardContent className="pt-0 space-y-3">
         {[1, 2, 3].map((num) => (
-          <div key={num} className="space-y-1">
+          <div key={num} className="space-y-2">
             <div className="flex items-center gap-2">
               <Checkbox
                 id={`priority-${num}`}
@@ -357,7 +358,7 @@ const WeeklyPriorities: React.FC = () => {
                 disabled={isOffline}
               />
               <Input
-                placeholder={`Priority ${num}...`}
+                placeholder={`Goal ${num}...`}
                 value={priorities[`priority_${num}` as keyof WeeklyPriority] as string || ''}
                 onChange={(e) => handlePriorityChange(num as 1 | 2 | 3, e.target.value)}
                 className={`flex-1 text-sm ${priorities[`priority_${num}_completed` as keyof WeeklyPriority] ? 'line-through text-gray-500' : ''}`}
@@ -376,25 +377,23 @@ const WeeklyPriorities: React.FC = () => {
           </div>
         ))}
         
-        <div className="pt-1">
-          <Button
-            onClick={savePriorities}
-            disabled={isSaving || isOffline}
-            size="sm"
-            className="bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 text-xs h-8"
-          >
-            {isSaving ? (
-              <span className="animate-spin">⟳</span>
-            ) : isOffline ? (
-              <WifiOff className="h-3 w-3" />
-            ) : (
-              <Save className="h-3 w-3" />
-            )}
-            <span className="ml-1">
-              {isSaving ? 'Saving...' : isOffline ? 'Offline' : 'Save'}
-            </span>
-          </Button>
-        </div>
+        <Button
+          onClick={savePriorities}
+          disabled={isSaving || isOffline}
+          size="sm"
+          className="w-full bg-purple-600 hover:bg-purple-700 text-white mt-4"
+        >
+          {isSaving ? (
+            <span className="animate-spin">⟳</span>
+          ) : isOffline ? (
+            <WifiOff className="h-3 w-3" />
+          ) : (
+            <Save className="h-3 w-3" />
+          )}
+          <span className="ml-2">
+            {isSaving ? 'Saving...' : isOffline ? 'Offline' : 'Save Goals'}
+          </span>
+        </Button>
       </CardContent>
     </Card>
   );

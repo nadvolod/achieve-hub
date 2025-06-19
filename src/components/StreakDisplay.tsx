@@ -9,7 +9,6 @@ const StreakDisplay: React.FC = () => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasConnectionError, setHasConnectionError] = useState(false);
 
-  // Force the streak to update when the component mounts, but only once
   useEffect(() => {
     if (!isInitialized) {
       const updateStreakData = async () => {
@@ -30,43 +29,51 @@ const StreakDisplay: React.FC = () => {
   }, [updateStreak, isInitialized]);
 
   return (
-    <Card className="bg-white shadow">
-      <CardHeader className="pb-2 flex flex-row justify-between items-center">
-        <div>
-          <CardTitle className="text-base font-medium text-navy-700 flex items-center gap-2">
-            Your Streak
-            {hasConnectionError && (
-              <WifiOff className="h-3 w-3 text-amber-500" />
-            )}
-          </CardTitle>
-          <CardDescription className="text-xs">
-            {hasConnectionError ? "Working in offline mode" : "Keep the momentum going!"}
-          </CardDescription>
+    <Card className="bg-gradient-to-br from-teal-50 to-blue-50 border-l-4 border-l-teal-400">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-teal-500 rounded-full p-2">
+              <Flame className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-lg font-semibold text-teal-800">
+                Your Progress
+              </CardTitle>
+              <CardDescription className="text-sm text-teal-600">
+                {hasConnectionError ? "Working offline" : "Keep the momentum going!"}
+              </CardDescription>
+            </div>
+          </div>
+          {hasConnectionError && (
+            <WifiOff className="h-4 w-4 text-amber-500" />
+          )}
         </div>
-        <Check className="h-4 w-4 text-teal-500" />
       </CardHeader>
-      <CardContent className="pt-2">
-        <div className="grid grid-cols-3 gap-3">
-          <div className="flex items-center gap-2">
-            <Flame className="h-4 w-4 text-orange-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-xs text-gray-500">Current</p>
-              <p className="text-lg font-bold text-navy-700">{currentStreak}</p>
+      <CardContent className="pt-0">
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center">
+            <div className="bg-orange-100 rounded-full p-3 mx-auto mb-2 w-fit">
+              <Flame className="h-5 w-5 text-orange-600" />
             </div>
+            <p className="text-2xl font-bold text-gray-800">{currentStreak}</p>
+            <p className="text-xs text-gray-600">Current Streak</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-amber-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-xs text-gray-500">Best</p>
-              <p className="text-lg font-bold text-navy-700">{bestStreak}</p>
+          
+          <div className="text-center">
+            <div className="bg-amber-100 rounded-full p-3 mx-auto mb-2 w-fit">
+              <Trophy className="h-5 w-5 text-amber-600" />
             </div>
+            <p className="text-2xl font-bold text-gray-800">{bestStreak}</p>
+            <p className="text-xs text-gray-600">Best Streak</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-purple-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <p className="text-xs text-gray-500">Goals</p>
-              <p className="text-lg font-bold text-navy-700">{goalsAchieved}</p>
+          
+          <div className="text-center">
+            <div className="bg-purple-100 rounded-full p-3 mx-auto mb-2 w-fit">
+              <Target className="h-5 w-5 text-purple-600" />
             </div>
+            <p className="text-2xl font-bold text-gray-800">{goalsAchieved}</p>
+            <p className="text-xs text-gray-600">Goals Hit</p>
           </div>
         </div>
       </CardContent>
