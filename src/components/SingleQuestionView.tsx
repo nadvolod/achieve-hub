@@ -115,9 +115,9 @@ const SingleQuestionView: React.FC<SingleQuestionViewProps> = ({
           <div className="flex items-center justify-between mb-4">
             <Button
               onClick={onBack}
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 border-teal-300 text-teal-700 hover:bg-teal-50 hover:border-teal-400 font-medium shadow-sm"
             >
               <ArrowLeft className="h-4 w-4" />
               Dashboard
