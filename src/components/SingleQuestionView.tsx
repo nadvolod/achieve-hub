@@ -4,30 +4,29 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Save, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Check, ArrowLeft } from "lucide-react";
 import { Question } from "../context/QuestionsContext";
-import MoodTracker from "./MoodTracker";
 
 interface SingleQuestionViewProps {
   questions: Question[];
   answers: Record<string, string>;
   onAnswerChange: (questionId: string, answer: string) => void;
-  mood?: number;
-  onMoodChange: (mood: number | undefined) => void;
   type: 'morning' | 'evening';
   onSave: () => Promise<void>;
   isSaving: boolean;
+  onBack: () => void;
+  formattedDate: string;
 }
 
 const SingleQuestionView: React.FC<SingleQuestionViewProps> = ({
   questions,
   answers,
   onAnswerChange,
-  mood,
-  onMoodChange,
   type,
   onSave,
-  isSaving
+  isSaving,
+  onBack,
+  formattedDate
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [localAnswer, setLocalAnswer] = useState('');
@@ -75,133 +74,156 @@ const SingleQuestionView: React.FC<SingleQuestionViewProps> = ({
     }
   };
 
+  const handleFinish = async () => {
+    await saveCurrentAnswer();
+    onBack();
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      goToNext();
+      if (isLastQuestion) {
+        handleFinish();
+      } else {
+        goToNext();
+      }
     }
   };
 
   if (!currentQuestion) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">No questions available</h2>
-          <p className="text-gray-600">Please check your question settings.</p>
-        </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="max-w-md w-full mx-4">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">No questions available</h2>
+            <p className="text-gray-600 mb-4">Please check your question settings.</p>
+            <Button onClick={onBack} variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header with progress */}
-      <div className="bg-white shadow-sm border-b px-4 py-3">
-        <div className="max-w-md mx-auto">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-600">
-              Question {currentIndex + 1} of {questions.length}
-            </span>
-            {lastSavedIndex === currentIndex && !hasUnsavedChanges && (
-              <div className="flex items-center text-green-600 text-sm">
-                <Check className="h-4 w-4 mr-1" />
-                Saved
-              </div>
-            )}
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-2xl">
+        {/* Header */}
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between mb-4">
+            <Button
+              onClick={onBack}
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Dashboard
+            </Button>
+            <div className="text-center">
+              <h2 className="text-lg font-semibold text-navy-500">{formattedDate}</h2>
+              <p className="text-sm text-gray-600 capitalize">{type} Reflection</p>
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
+              {lastSavedIndex === currentIndex && !hasUnsavedChanges && (
+                <div className="flex items-center text-green-600">
+                  <Check className="h-4 w-4 mr-1" />
+                  Saved
+                </div>
+              )}
+            </div>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-teal-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
-            />
-          </div>
-        </div>
-      </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md">
-          {/* Mood tracker for first question */}
-          {currentIndex === 0 && (
-            <div className="mb-6">
-              <MoodTracker 
-                mood={mood} 
-                onMoodChange={onMoodChange} 
-                type={type}
+          {/* Progress */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium text-gray-600">
+                Question {currentIndex + 1} of {questions.length}
+              </span>
+              <span className="text-gray-500">
+                {Math.round(((currentIndex + 1) / questions.length) * 100)}% complete
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-teal-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
               />
             </div>
-          )}
+          </div>
+        </CardHeader>
 
-          {/* Question card */}
-          <Card className={`transition-all duration-200 border-l-4 
-            ${currentQuestion.isTopFive ? 'border-l-teal-400' : 'border-l-navy-300'}`}>
-            <CardHeader className="p-6 pb-4">
-              <div className="flex items-start justify-between">
-                <h2 className="text-lg font-semibold text-gray-800 leading-relaxed">
-                  {currentQuestion.text}
-                </h2>
-                {currentQuestion.isTopFive && (
-                  <Badge variant="outline" className="bg-teal-100 hover:bg-teal-100 text-teal-700 border-teal-200 font-normal text-xs rounded-full px-3 py-1 ml-4 flex-shrink-0">
-                    Top 5
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-6 pt-2">
+        {/* Question Content */}
+        <CardContent className="space-y-6">
+          {/* Question */}
+          <div className="space-y-4">
+            <div className="flex items-start justify-between">
+              <h3 className="text-xl font-semibold text-gray-800 leading-relaxed flex-1">
+                {currentQuestion.text}
+              </h3>
+              {currentQuestion.isTopFive && (
+                <Badge variant="outline" className="bg-teal-100 hover:bg-teal-100 text-teal-700 border-teal-200 font-normal text-xs rounded-full px-3 py-1 ml-4 flex-shrink-0">
+                  Top 5
+                </Badge>
+              )}
+            </div>
+
+            {/* Answer */}
+            <div className="space-y-2">
               <Textarea
                 value={localAnswer}
                 onChange={(e) => handleAnswerChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Type your answer here..."
-                className="min-h-[120px] text-base focus:border-teal-400 focus:ring-teal-400 bg-white resize-none"
+                className="min-h-[160px] text-base focus:border-teal-400 focus:ring-teal-400 bg-white resize-none"
                 autoFocus
               />
-              <p className="text-xs text-gray-500 mt-2">
-                Press Cmd/Ctrl + Enter to save and continue
+              <p className="text-xs text-gray-500">
+                Press Cmd/Ctrl + Enter to save and {isLastQuestion ? 'finish' : 'continue'}
               </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            </div>
+          </div>
 
-      {/* Navigation footer */}
-      <div className="bg-white border-t px-4 py-4">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          <Button
-            onClick={goToPrevious}
-            disabled={isFirstQuestion || isSaving}
-            variant="outline"
-            className="flex items-center gap-2"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Previous
-          </Button>
+          {/* Navigation */}
+          <div className="flex items-center justify-between pt-4 border-t">
+            <Button
+              onClick={goToPrevious}
+              disabled={isFirstQuestion || isSaving}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
 
-          <Button
-            onClick={saveCurrentAnswer}
-            disabled={!hasUnsavedChanges || isSaving}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            {isSaving ? (
-              <span className="animate-spin">⟳</span>
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            Save
-          </Button>
+            <Button
+              onClick={saveCurrentAnswer}
+              disabled={!hasUnsavedChanges || isSaving}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              {isSaving ? (
+                <span className="animate-spin">⟳</span>
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save
+            </Button>
 
-          <Button
-            onClick={goToNext}
-            disabled={isSaving}
-            className="bg-teal-500 hover:bg-teal-600 text-white flex items-center gap-2"
-          >
-            {isLastQuestion ? 'Finish' : 'Next'}
-            {!isLastQuestion && <ChevronRight className="h-4 w-4" />}
-          </Button>
-        </div>
-      </div>
+            <Button
+              onClick={isLastQuestion ? handleFinish : goToNext}
+              disabled={isSaving}
+              className="bg-teal-500 hover:bg-teal-600 text-white flex items-center gap-2"
+            >
+              {isLastQuestion ? 'Finish' : 'Next'}
+              {!isLastQuestion && <ChevronRight className="h-4 w-4" />}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

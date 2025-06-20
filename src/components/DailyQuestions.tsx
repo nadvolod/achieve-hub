@@ -123,7 +123,7 @@ const DailyQuestions: React.FC = () => {
         answer: activeAnswers[question.id] || ''
       }));
       
-      if (entryAnswers.some(answer => answer.answer.trim() !== '')) {
+      if (entryAnswers.some(answer => answer.answer.trim() !== '') || activeMood !== undefined) {
         await saveEntry({
           date: today,
           type: activeTab as 'morning' | 'evening',
@@ -164,58 +164,19 @@ const DailyQuestions: React.FC = () => {
   if (viewMode === 'single') {
     const activeQuestions = activeTab === "morning" ? sortedMorningQuestions : sortedEveningQuestions;
     const activeAnswers = activeTab === "morning" ? morningAnswers : eveningAnswers;
-    const activeMood = activeTab === "morning" ? morningMood : eveningMood;
     const onAnswerChange = activeTab === "morning" ? handleMorningAnswerChange : handleEveningAnswerChange;
-    const onMoodChange = activeTab === "morning" ? setMorningMood : setEveningMood;
 
     return (
-      <div className="relative">
-        <div className="bg-white shadow-sm border-b px-4 py-3 fixed top-16 left-0 right-0 z-10">
-          <div className="max-w-md mx-auto flex items-center justify-between">
-            <Button
-              onClick={() => setViewMode('dashboard')}
-              variant="ghost"
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Dashboard
-            </Button>
-            <h2 className="text-lg font-semibold text-navy-500">{formattedDate}</h2>
-            <div className="flex items-center gap-2">
-              <Tabs 
-                value={activeTab} 
-                onValueChange={setActiveTab} 
-                className="w-auto"
-              >
-                <TabsList className="grid grid-cols-2">
-                  <TabsTrigger value="morning" className="flex items-center gap-1 text-xs">
-                    <Sun className="h-3 w-3" />
-                    <span>AM</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="evening" className="flex items-center gap-1 text-xs">
-                    <Moon className="h-3 w-3" />
-                    <span>PM</span>
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-          </div>
-        </div>
-
-        <div className="pt-16">
-          <SingleQuestionView
-            questions={activeQuestions}
-            answers={activeAnswers}
-            onAnswerChange={onAnswerChange}
-            mood={activeMood}
-            onMoodChange={onMoodChange}
-            type={activeTab as 'morning' | 'evening'}
-            onSave={handleSaveAll}
-            isSaving={isSaving}
-          />
-        </div>
-      </div>
+      <SingleQuestionView
+        questions={activeQuestions}
+        answers={activeAnswers}
+        onAnswerChange={onAnswerChange}
+        type={activeTab as 'morning' | 'evening'}
+        onSave={handleSaveAll}
+        isSaving={isSaving}
+        onBack={() => setViewMode('dashboard')}
+        formattedDate={formattedDate}
+      />
     );
   }
 
@@ -321,6 +282,10 @@ const DailyQuestions: React.FC = () => {
       onTabChange={setActiveTab}
       onViewModeChange={setViewMode}
       onRefresh={handleRefresh}
+      morningMood={morningMood}
+      eveningMood={eveningMood}
+      onMorningMoodChange={setMorningMood}
+      onEveningMoodChange={setEveningMood}
     />
   );
 };

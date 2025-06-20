@@ -6,6 +6,7 @@ import { Sun, Moon, Grid, List, Target, TrendingUp, Calendar } from "lucide-reac
 import StreakDisplay from "./StreakDisplay";
 import WeeklyPriorities from "./WeeklyPriorities";
 import MoodChart from "./MoodChart";
+import MoodTracker from "./MoodTracker";
 import { useQuestions } from "../context/QuestionsContext";
 
 interface DashboardLayoutProps {
@@ -14,6 +15,10 @@ interface DashboardLayoutProps {
   onTabChange: (tab: string) => void;
   onViewModeChange: (mode: 'dashboard' | 'single' | 'list') => void;
   onRefresh: () => void;
+  morningMood?: number;
+  eveningMood?: number;
+  onMorningMoodChange: (mood: number) => void;
+  onEveningMoodChange: (mood: number) => void;
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({
@@ -21,7 +26,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   activeTab,
   onTabChange,
   onViewModeChange,
-  onRefresh
+  onRefresh,
+  morningMood,
+  eveningMood,
+  onMorningMoodChange,
+  onEveningMoodChange
 }) => {
   const { getMoodTrend } = useQuestions();
   const moodTrend = getMoodTrend();
@@ -30,7 +39,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b px-4 py-4">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold text-navy-500 mb-1">Achieve Hub</h1>
@@ -54,7 +63,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             onValueChange={onTabChange} 
             className="w-full"
           >
-            <TabsList className="grid grid-cols-2 w-full max-w-md">
+            <TabsList className="grid grid-cols-2 w-full max-w-md mx-auto">
               <TabsTrigger value="morning" className="flex items-center gap-2">
                 <Sun className="h-4 w-4" />
                 <span>Morning</span>
@@ -69,34 +78,33 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto p-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="max-w-6xl mx-auto p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column - Streaks & Priorities */}
           <div className="space-y-4">
             <StreakDisplay />
             <WeeklyPriorities />
           </div>
 
-          {/* Middle Column - Mood Chart */}
+          {/* Right Column - Mood & Actions */}
           <div className="space-y-4">
+            {/* Mood Tracker */}
             <div className="bg-white rounded-lg shadow-sm border p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-5 w-5 text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-800">Mood Trend</h3>
-              </div>
-              <MoodChart moodData={moodTrend} />
+              <MoodTracker 
+                mood={activeTab === 'morning' ? morningMood : eveningMood}
+                onMoodChange={activeTab === 'morning' ? onMorningMoodChange : onEveningMoodChange}
+                type={activeTab as 'morning' | 'evening'}
+              />
             </div>
-          </div>
 
-          {/* Right Column - Quick Actions */}
-          <div className="space-y-4">
+            {/* Quick Actions - Centered */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-6 justify-center">
                 <Target className="h-5 w-5 text-teal-600" />
                 <h3 className="text-lg font-semibold text-gray-800">Quick Actions</h3>
               </div>
               
-              <div className="space-y-3">
+              <div className="space-y-3 max-w-sm mx-auto">
                 <Button
                   onClick={() => onViewModeChange('single')}
                   className="w-full bg-teal-500 hover:bg-teal-600 text-white flex items-center gap-2 justify-center"
@@ -117,12 +125,21 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 </Button>
               </div>
               
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg text-center">
                 <h4 className="font-medium text-gray-800 mb-2">Today's Focus</h4>
                 <p className="text-sm text-gray-600">
                   Complete your {activeTab} reflection to maintain your streak and achieve your goals.
                 </p>
               </div>
+            </div>
+
+            {/* Mood Chart */}
+            <div className="bg-white rounded-lg shadow-sm border p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="h-5 w-5 text-purple-600" />
+                <h3 className="text-lg font-semibold text-gray-800">Mood Trend</h3>
+              </div>
+              <MoodChart moodData={moodTrend} />
             </div>
           </div>
         </div>
