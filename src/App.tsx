@@ -8,7 +8,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { QuestionsProvider } from "./context/QuestionsContext";
 
-// Fix lazy imports - use direct imports instead of lazy for critical components
+// Use direct imports for critical components to avoid loading issues
 import Index from "./pages/Index";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
@@ -77,9 +77,11 @@ const AppRoutes = memo(() => {
 
 const App = memo(() => {
   // Set default theme to light on app load
-  if (localStorage.getItem("theme") === null) {
+  if (typeof localStorage !== 'undefined' && localStorage.getItem("theme") === null) {
     localStorage.setItem("theme", "light");
-    document.documentElement.classList.remove("dark");
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.remove("dark");
+    }
   }
 
   return (
