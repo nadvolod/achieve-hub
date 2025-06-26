@@ -6,14 +6,18 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:prod": "npm run remove-console && vite build",
     "build:dev": "vite build --mode development",
+    "remove-console": "find src -name '*.ts' -o -name '*.tsx' | xargs sed -i.bak 's/console\\.\\(log\\|error\\|warn\\|info\\).*;//g' && find src -name '*.bak' -delete",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "test:performance": "playwright test tests/performance.spec.ts",
+    "test:bugs": "playwright test tests/bugs.spec.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

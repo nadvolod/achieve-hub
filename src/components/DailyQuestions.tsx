@@ -1,21 +1,18 @@
-
-import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sun, Moon, Save, Grid, List, ArrowLeft } from "lucide-react";
-import QuestionCard from "./QuestionCard";
-import SingleQuestionView from "./SingleQuestionView";
-import WeeklyPriorities from "./WeeklyPriorities";
-import MoodTracker from "./MoodTracker";
-import MoodChart from "./MoodChart";
+import { useToast } from "@/components/ui/use-toast";
+import { ArrowLeft, Moon, Save, Sun } from "lucide-react";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { useQuestions } from "../context/QuestionsContext";
 import { formatDate, getTodayDateString } from "../utils/questionsUtils";
-import { useAuth } from "../context/AuthContext";
-import StreakDisplay from "./StreakDisplay";
 import DashboardLayout from "./DashboardLayout";
+import MoodChart from "./MoodChart";
+import MoodTracker from "./MoodTracker";
+import QuestionCard from "./QuestionCard";
+import SingleQuestionView from "./SingleQuestionView";
 
-const DailyQuestions: React.FC = () => {
+const DailyQuestions: React.FC = memo(() => {
   const { 
     todaysMorningQuestions, 
     todaysEveningQuestions, 
@@ -36,21 +33,27 @@ const DailyQuestions: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("morning");
   const [viewMode, setViewMode] = useState<'dashboard' | 'single' | 'list'>('dashboard');
   
-  const today = getTodayDateString();
-  const formattedDate = formatDate(today);
-  const moodTrend = getMoodTrend();
+  // Memoize today's date and formatted date
+  const today = useMemo(() => getTodayDateString(), []);
+  const formattedDate = useMemo(() => formatDate(today), [today]);
+  const moodTrend = useMemo(() => getMoodTrend(), [getMoodTrend]);
   
-  const sortedMorningQuestions = [...todaysMorningQuestions].sort((a, b) => {
-    if (a.isTopFive && !b.isTopFive) return -1;
-    if (!a.isTopFive && b.isTopFive) return 1;
-    return a.position - b.position;
-  });
+  // Memoize sorted questions to prevent unnecessary recalculations
+  const sortedMorningQuestions = useMemo(() => 
+    [...todaysMorningQuestions].sort((a, b) => {
+      if (a.isTopFive && !b.isTopFive) return -1;
+      if (!a.isTopFive && b.isTopFive) return 1;
+      return a.position - b.position;
+    }), [todaysMorningQuestions]
+  );
 
-  const sortedEveningQuestions = [...todaysEveningQuestions].sort((a, b) => {
-    if (a.isTopFive && !b.isTopFive) return -1;
-    if (!a.isTopFive && b.isTopFive) return 1;
-    return a.position - b.position;
-  });
+  const sortedEveningQuestions = useMemo(() => 
+    [...todaysEveningQuestions].sort((a, b) => {
+      if (a.isTopFive && !b.isTopFive) return -1;
+      if (!a.isTopFive && b.isTopFive) return 1;
+      return a.position - b.position;
+    }), [todaysEveningQuestions]
+  );
   
   // Load existing entries for today
   useEffect(() => {
@@ -95,21 +98,21 @@ const DailyQuestions: React.FC = () => {
     
   }, [todaysMorningQuestions, todaysEveningQuestions, getEntries, today]);
   
-  const handleMorningAnswerChange = (questionId: string, answer: string) => {
+  const handleMorningAnswerChange = useCallback((questionId: string, answer: string) => {
     setMorningAnswers(prev => ({
       ...prev,
       [questionId]: answer
     }));
-  };
+  }, []);
   
-  const handleEveningAnswerChange = (questionId: string, answer: string) => {
+  const handleEveningAnswerChange = useCallback((questionId: string, answer: string) => {
     setEveningAnswers(prev => ({
       ...prev,
       [questionId]: answer
     }));
-  };
+  }, []);
   
-  const handleSaveAll = async () => {
+  const handleSaveAll = useCallback(async () => {
     setIsSaving(true);
     
     try {
@@ -132,7 +135,6 @@ const DailyQuestions: React.FC = () => {
         });
       }
       
-      console.log("DailyQuestions: Explicitly updating streak after save");
       await updateStreak();
       await refreshEntries();
       
@@ -141,7 +143,6 @@ const DailyQuestions: React.FC = () => {
         description: `Your ${activeTab} reflections have been saved successfully.`
       });
     } catch (error) {
-      console.error("Error saving entries:", error);
       toast({
         title: "Error saving",
         description: "There was a problem saving your answers.",
@@ -150,27 +151,32 @@ const DailyQuestions: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
-  };
-  
-  const handleRefresh = () => {
+  }, [activeTab, sortedMorningQuestions, sortedEveningQuestions, morningAnswers, eveningAnswers, morningMood, eveningMood, today, saveEntry, updateStreak, refreshEntries, toast]);
+
+  const handleRefresh = useCallback(() => {
     refreshTodaysQuestions();
     toast({
       title: "Questions refreshed",
       description: "Your daily questions have been refreshed."
     });
-  };
+  }, [refreshTodaysQuestions, toast]);
 
-  // Single question view
-  if (viewMode === 'single') {
+  // Memoize active question data
+  const activeQuestionData = useMemo(() => {
     const activeQuestions = activeTab === "morning" ? sortedMorningQuestions : sortedEveningQuestions;
     const activeAnswers = activeTab === "morning" ? morningAnswers : eveningAnswers;
     const onAnswerChange = activeTab === "morning" ? handleMorningAnswerChange : handleEveningAnswerChange;
+    
+    return { activeQuestions, activeAnswers, onAnswerChange };
+  }, [activeTab, sortedMorningQuestions, sortedEveningQuestions, morningAnswers, eveningAnswers, handleMorningAnswerChange, handleEveningAnswerChange]);
 
+  // Single question view
+  if (viewMode === 'single') {
     return (
       <SingleQuestionView
-        questions={activeQuestions}
-        answers={activeAnswers}
-        onAnswerChange={onAnswerChange}
+        questions={activeQuestionData.activeQuestions}
+        answers={activeQuestionData.activeAnswers}
+        onAnswerChange={activeQuestionData.onAnswerChange}
         type={activeTab as 'morning' | 'evening'}
         onSave={handleSaveAll}
         isSaving={isSaving}
@@ -288,6 +294,6 @@ const DailyQuestions: React.FC = () => {
       onEveningMoodChange={setEveningMood}
     />
   );
-};
+});
 
 export default DailyQuestions;
