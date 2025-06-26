@@ -1,3 +1,4 @@
+
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,22 +8,22 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { QuestionsProvider } from "./context/QuestionsContext";
 
-// Lazy load all routes for better performance
-const Index = lazy(() => import("./pages/Index"));
-const History = lazy(() => import("./pages/History"));
-const Settings = lazy(() => import("./pages/Settings"));
-const Auth = lazy(() => import("./pages/Auth"));
-const Landing = lazy(() => import("./pages/Landing"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const ProtectedRoute = lazy(() => import("./components/ProtectedRoute"));
+// Fix lazy imports - use direct imports instead of lazy for critical components
+import Index from "./pages/Index";
+import History from "./pages/History";
+import Settings from "./pages/Settings";
+import Auth from "./pages/Auth";
+import Landing from "./pages/Landing";
+import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60000,
       refetchInterval: 300000,
-      retry: 1, // Reduce retries for faster loading
-      refetchOnWindowFocus: false, // Reduce unnecessary fetches
+      retry: 1,
+      refetchOnWindowFocus: false,
     },
   },
 });
@@ -54,25 +55,23 @@ const AppRoutes = memo(() => {
   }
 
   return (
-    <Suspense fallback={<LoadingSpinner />}>
-      <Routes>
-        <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
-        <Route path="/landing" element={<Landing />} />
-        <Route 
-          path="/" 
-          element={
-            user ? (
-              <ProtectedRoute><Index /></ProtectedRoute>
-            ) : (
-              <Navigate to="/landing" replace />
-            )
-          } 
-        />
-        <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Suspense>
+    <Routes>
+      <Route path="/auth" element={user ? <Navigate to="/" replace /> : <Auth />} />
+      <Route path="/landing" element={<Landing />} />
+      <Route 
+        path="/" 
+        element={
+          user ? (
+            <ProtectedRoute><Index /></ProtectedRoute>
+          ) : (
+            <Navigate to="/landing" replace />
+          )
+        } 
+      />
+      <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 });
 
@@ -92,7 +91,9 @@ const App = memo(() => {
         <BrowserRouter>
           <AuthProvider>
             <QuestionsProvider>
-              <AppRoutes />
+              <Suspense fallback={<LoadingSpinner />}>
+                <AppRoutes />
+              </Suspense>
             </QuestionsProvider>
           </AuthProvider>
         </BrowserRouter>
