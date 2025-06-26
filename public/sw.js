@@ -1,117 +1,78 @@
+// Simple Service Worker for Achieve Hub
 const CACHE_NAME = 'achieve-hub-v1';
-const STATIC_CACHE = 'static-v1';
-const API_CACHE = 'api-v1';
+const STATIC_CACHE = 'achieve-hub-static-v1';
 
-// Critical assets to cache immediately
-const CRITICAL_ASSETS = [
+// Essential assets to cache
+const STATIC_ASSETS = [
   '/',
-  '/landing',
-  '/auth',
-  '/src/main.tsx',
-  '/src/App.tsx',
-  '/src/pages/Landing.tsx',
-  '/src/components/landing/HeroSection.tsx',
-  '/src/context/AuthContext.tsx'
+  '/index.html',
+  '/manifest.json',
 ];
 
-// Install event - cache critical assets
+// Install event - cache essential assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    Promise.all([
-      caches.open(STATIC_CACHE).then((cache) => {
-        return cache.addAll(CRITICAL_ASSETS);
-      }),
-      caches.open(API_CACHE)
-    ]).then(() => {
-      self.skipWaiting();
-    })
+    caches.open(STATIC_CACHE)
+      .then(cache => {
+        console.log('Service Worker: Caching essential assets');
+        return cache.addAll(STATIC_ASSETS);
+      })
+      .catch(err => console.log('Service Worker: Cache failed', err))
   );
+  self.skipWaiting();
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then(cacheNames => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== STATIC_CACHE && cacheName !== API_CACHE) {
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME && cacheName !== STATIC_CACHE) {
+            console.log('Service Worker: Deleting old cache', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
-    }).then(() => {
-      self.clients.claim();
     })
   );
+  self.clients.claim();
 });
 
-// Fetch event - serve from cache with network fallback
+// Fetch event - simple network-first strategy
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // Handle API requests with cache-first strategy for performance
-  if (url.pathname.includes('/api/') || url.hostname.includes('supabase')) {
-    event.respondWith(
-      caches.open(API_CACHE).then((cache) => {
-        return cache.match(request).then((cachedResponse) => {
-          if (cachedResponse) {
-            // Serve from cache immediately, update in background
-            fetch(request).then((response) => {
-              if (response.ok) {
-                cache.put(request, response.clone());
-              }
-            }).catch(() => {
-              // Network failed, but we have cache
-            });
-            return cachedResponse;
-          }
-
-          // Not in cache, fetch from network
-          return fetch(request).then((response) => {
-            if (response.ok) {
-              cache.put(request, response.clone());
-            }
-            return response;
-          }).catch(() => {
-            // Return a basic error response for API failures
-            return new Response(JSON.stringify({ error: 'Network unavailable' }), {
-              status: 503,
-              headers: { 'Content-Type': 'application/json' }
-            });
-          });
-        });
-      })
-    );
+  // Skip non-GET requests and chrome-extension requests
+  if (event.request.method !== 'GET' || event.request.url.startsWith('chrome-extension://')) {
     return;
   }
 
-  // Handle static assets with cache-first strategy
-  if (request.method === 'GET') {
-    event.respondWith(
-      caches.open(STATIC_CACHE).then((cache) => {
-        return cache.match(request).then((cachedResponse) => {
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-
-          return fetch(request).then((response) => {
-            // Cache successful responses
-            if (response.ok) {
-              cache.put(request, response.clone());
-            }
-            return response;
-          }).catch(() => {
-            // If it's a navigation request and we're offline, serve the app shell
-            if (request.mode === 'navigate') {
-              return cache.match('/');
-            }
-            throw error;
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        // If network request is successful, update cache and return response
+        if (response.status === 200) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => {
+            cache.put(event.request, responseClone);
           });
-        });
+        }
+        return response;
       })
-    );
-  }
+      .catch(() => {
+        // If network fails, try to serve from cache
+        return caches.match(event.request)
+          .then(response => {
+            if (response) {
+              return response;
+            }
+            // If not in cache, return offline fallback for navigation requests
+            if (event.request.mode === 'navigate') {
+              return caches.match('/index.html');
+            }
+            return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+          });
+      })
+  );
 });
 
 // Background sync for offline functionality
@@ -143,7 +104,7 @@ self.addEventListener('push', (event) => {
 async function syncOfflineData() {
   try {
     // Sync any pending data when connection is restored
-    const cache = await caches.open(API_CACHE);
+    const cache = await caches.open(CACHE_NAME);
     // Implementation would depend on your specific offline strategy
     console.log('Background sync completed');
   } catch (error) {

@@ -8,6 +8,20 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    strictPort: false,
+    // Fix MIME type issues
+    headers: {
+      'Content-Type': 'application/javascript; charset=utf-8',
+    },
+  },
+  preview: {
+    port: 8081,
+    strictPort: false,
+    // Add proper headers for production preview
+    headers: {
+      'Cache-Control': 'public, max-age=31536000',
+      'Content-Type': 'application/javascript; charset=utf-8',
+    },
   },
   plugins: [
     react(),
@@ -33,6 +47,10 @@ export default defineConfig(({ mode }) => ({
           form: ['react-hook-form', '@hookform/resolvers', 'zod'],
           icons: ['lucide-react'],
         },
+        // Ensure proper file extensions for ES modules
+        entryFileNames: '[name]-[hash].js',
+        chunkFileNames: '[name]-[hash].js',
+        assetFileNames: '[name]-[hash].[ext]',
       },
     },
     // Maximum optimization settings
@@ -52,6 +70,9 @@ export default defineConfig(({ mode }) => ({
     reportCompressedSize: false, // Disable to speed up build
     // Optimize CSS
     cssMinify: 'esbuild',
+    // Ensure compatibility with Lovable.dev
+    outDir: 'dist',
+    emptyOutDir: true,
   },
   // Optimize dependencies with aggressive settings
   optimizeDeps: {
@@ -90,10 +111,6 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  // Enable gzip compression for dev server
-  preview: {
-    headers: {
-      'Cache-Control': 'public, max-age=31536000',
-    },
-  },
+  // Fix base path for deployment
+  base: mode === 'production' ? './' : '/',
 }));

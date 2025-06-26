@@ -4,20 +4,22 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 8080 --host",
     "build": "vite build",
     "build:prod": "npm run remove-console && vite build",
     "build:dev": "vite build --mode development",
     "remove-console": "find src -name '*.ts' -o -name '*.tsx' | xargs sed -i.bak 's/console\\.\\(log\\|error\\|warn\\|info\\).*;//g' && find src -name '*.bak' -delete",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "test": "playwright test",
+    "preview": "vite preview --port 8081",
+    "test": "playwright test --project=chromium",
+    "test:all": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
     "test:debug": "playwright test --debug",
     "test:report": "playwright show-report",
-    "test:performance": "playwright test tests/performance.spec.ts",
-    "test:bugs": "playwright test tests/bugs.spec.ts"
+    "test:performance": "playwright test tests/performance.spec.ts --project=chromium",
+    "test:bugs": "playwright test tests/bugs.spec.ts --project=chromium",
+    "serve": "npx serve -s dist -l 8081"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
