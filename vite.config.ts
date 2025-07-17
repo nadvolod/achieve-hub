@@ -92,16 +92,7 @@ export default defineConfig(({ mode }) => ({
     // Force optimization of all dependencies
     force: mode === 'production',
   },
-  // Enable experimental features for performance
-  experimental: {
-    renderBuiltUrl(filename, { hostType }) {
-      if (hostType === 'js') {
-        // Preload critical JS files
-        return { runtime: `__import.meta.url__ + ${JSON.stringify(filename)}` };
-      }
-      return filename;
-    },
-  },
+  // Remove experimental features that cause module loading issues
   // CSS optimization
   css: {
     devSourcemap: false,
