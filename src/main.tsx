@@ -1,12 +1,12 @@
 
-import React from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
 import './index.css';
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error('Failed to find root element');
-}
+console.log('Main.tsx is loading...');
 
-createRoot(rootElement).render(<App />);
+const root = document.getElementById('root');
+if (root) {
+  root.innerHTML = '<h1 style="padding: 20px;">React is working now!</h1>';
+  console.log('React mounted successfully');
+} else {
+  console.error('Root element not found');
+}
