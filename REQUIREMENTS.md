@@ -97,10 +97,6 @@ Achieve Hub helps users build better habits, track daily progress, and achieve t
 - **React 18**: Modern React with hooks and concurrent features
 - **TypeScript**: Type safety and enhanced developer experience
 - **Vite**: Fast build tool and development server
-- **Tailwind CSS**: Utility-first CSS framework for styling
-- **shadcn/ui**: High-quality, accessible UI component library
-- **React Router**: Client-side routing and navigation
-- **Lucide React**: Icon library for consistent iconography
 
 ### 4.2 Backend & Services
 - **Supabase**: Backend-as-a-Service for authentication and database
@@ -175,12 +171,6 @@ Achieve Hub helps users build better habits, track daily progress, and achieve t
 ## 8. Quality Assurance Requirements
 
 ### 8.1 Testing Strategy
-- **Unit Tests**: Component-level functionality testing
-- **Integration Tests**: API and service integration validation
-- **End-to-End Tests**: Complete user workflow testing
-- **Performance Tests**: Load time and responsiveness validation
-- **Accessibility Tests**: WCAG compliance verification
-
 ### 8.2 Browser Support
 - **Modern Browsers**: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+
 - **Mobile Browsers**: iOS Safari 14+, Chrome Mobile 90+
@@ -211,7 +201,6 @@ Achieve Hub helps users build better habits, track daily progress, and achieve t
 ### 10.2 Authentication Security
 - **Password Requirements**: Minimum complexity standards
 - **Session Management**: Secure session tokens and appropriate timeouts
-- **Multi-Factor Authentication**: Optional 2FA for enhanced security
 - **Account Lockout**: Protection against brute force attacks
 
 ## 11. Compliance & Legal Requirements
